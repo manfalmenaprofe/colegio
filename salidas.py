@@ -31,7 +31,14 @@ def cargar_docente():
 
 # 2. Conexión a Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+
+# Con esto:
+import json
+from streamlit import secrets
+
+# Obtén las credenciales desde secrets.toml
+creds_json = json.loads(secrets["gspread"]["credentials"])
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
 client = gspread.authorize(creds)
 
 spreadsheet = client.open("salidasbano")
