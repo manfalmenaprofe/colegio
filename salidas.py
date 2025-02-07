@@ -2,23 +2,33 @@ import streamlit as st
 import gspread
 import hashlib
 import os
+import getpass
 from pathlib import Path
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from datetime import datetime
 
-# 1. Configuración de directorio por usuario
-USER_HOME = Path.home()
-CONFIG_DIR = USER_HOME / ".docente_app"
+# 1. Configuración de rutas compatible con cloud
+try:
+    CONFIG_DIR = Path.home() / ".docente_app"
+except Exception:
+    CONFIG_DIR = Path(__file__).parent / "config"
+
 CONFIG_DIR.mkdir(exist_ok=True, parents=True)
 
+# 2. Generación de ID único mejorada
 def get_unique_id():
-    system_user = os.getlogin()
-    device_id = hashlib.sha256(str(st.query_params).encode()).hexdigest()[:8]
-    return f"{system_user}_{device_id}"
+    try:
+        system_user = getpass.getuser()
+    except Exception:
+        system_user = "default_user"
+    
+    device_hash = hashlib.sha256(str(st.query_params).encode()).hexdigest()[:8]
+    return f"{system_user}_{device_hash}"
 
 CONFIG_FILE = CONFIG_DIR / f"{get_unique_id()}.config"
 
+# 3. Sistema de configuración
 def guardar_docente(docente):
     with open(CONFIG_FILE, "w") as f:
         f.write(docente)
@@ -29,103 +39,107 @@ def cargar_docente():
             return f.read().strip()
     return None
 
-# 2. Conexión a Google Sheets
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# 4. Conexión segura a Google Sheets
+@st.cache_resource
+def conectar_google_sheets():
+    try:
+        # Para Streamlit Cloud
+        creds_info = st.secrets["gspread"]["credentials"]
+        return gspread.service_account_from_dict(creds_info)
+    except Exception:
+        # Para desarrollo local
+        scope = ["https://spreadsheets.google.com/feeds", 
+                "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+        return gspread.authorize(creds)
 
-# Con esto:
-import json
-from streamlit import secrets
+gc = conectar_google_sheets()
 
-# Obtén las credenciales desde secrets.toml
-creds_json = json.loads(secrets["gspread"]["credentials"])
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
-client = gspread.authorize(creds)
+# 5. Carga de datos
+@st.cache_data(ttl=300)
+def cargar_datos():
+    try:
+        spreadsheet = gc.open("salidasbano")
+        alumnos_df = pd.DataFrame(spreadsheet.worksheet("Alumnos").get_all_records())
+        horarios_df = pd.DataFrame(spreadsheet.worksheet("Horarios").get_all_records())
+        return alumnos_df, horarios_df
+    except Exception as e:
+        st.error(f"Error cargando datos: {str(e)}")
+        return pd.DataFrame(), pd.DataFrame()
 
-spreadsheet = client.open("salidasbano")
-alumnos_sheet = spreadsheet.worksheet("Alumnos")
-horarios_sheet = spreadsheet.worksheet("Horarios")
+alumnos_df, horarios_df = cargar_datos()
 
-alumnos_df = pd.DataFrame(alumnos_sheet.get_all_records())
-horarios_df = pd.DataFrame(horarios_sheet.get_all_records())
+# 6. Interfaz de usuario
+st.title("Registro de Salidas al Baño 🚻")
 
-# 3. Interfaz principal
-st.title("Registro de Salidas al Baño")
-
+# 7. Gestión de docente
 docente_guardado = cargar_docente()
-docentes = horarios_df["Docente"].unique().tolist()
+docentes_validos = horarios_df["Docente"].unique().tolist() if not horarios_df.empty else []
 
-if not docente_guardado or docente_guardado not in docentes:
-    docente = st.selectbox("Seleccione su nombre:", docentes)
+if not docente_guardado or docente_guardado not in docentes_validos:
+    docente = st.selectbox("Seleccione su nombre:", docentes_validos)
     if st.button("Guardar preferencia"):
         guardar_docente(docente)
         st.rerun()
 else:
     docente = docente_guardado
-    st.success(f"Usuario actual: **{docente}**")
+    st.success(f"Bienvenido: **{docente}**")
     
-    # 4. Lógica de horarios (versión mejorada)
+    # 8. Lógica de horario
     hora_actual = datetime.now().time()
     
-    def en_horario(inicio, fin):
+    def en_horario(inicio_str, fin_str):
         try:
-            inicio_t = datetime.strptime(inicio, "%H:%M").time()
-            fin_t = datetime.strptime(fin, "%H:%M").time()
-            return inicio_t <= hora_actual <= fin_t
-        except Exception as e:
-            st.error(f"Error en formato de hora: {inicio} - {fin}")
+            inicio = datetime.strptime(inicio_str, "%H:%M").time()
+            fin = datetime.strptime(fin_str, "%H:%M").time()
+            return inicio <= hora_actual <= fin
+        except ValueError:
             return False
     
-    # Filtrar horarios del docente
-    horarios_docente = horarios_df[horarios_df["Docente"] == docente].copy()
-    horarios_docente["En_Horario"] = horarios_docente.apply(
-        lambda x: en_horario(x["Inicio"], x["Fin"]), axis=1
-    )
-    
-    horario_actual = horarios_docente[horarios_docente["En_Horario"]]
+    horario_actual = horarios_df[
+        (horarios_df["Docente"] == docente) &
+        horarios_df.apply(lambda x: en_horario(x["Inicio"], x["Fin"]), axis=1)
+    ]
     
     if not horario_actual.empty:
         grupo = horario_actual.iloc[0]["Grupo"]
-        st.subheader(f"Grupo asignado: {grupo}")
+        st.subheader(f"Grupo actual: {grupo}")
         
-        # 5. Mostrar alumnos (con verificación)
+        # 9. Registro de alumnos
         alumnos_grupo = alumnos_df[alumnos_df["Grupo"] == grupo]
         
         if not alumnos_grupo.empty:
             with st.form("registro_form"):
-                st.write("**Seleccione los alumnos:**")
                 seleccionados = []
-                
                 for _, alumno in alumnos_grupo.iterrows():
-                    nombre = alumno["Alumno"]
-                    if st.checkbox(nombre, key=f"{grupo}_{nombre}"):
-                        seleccionados.append(nombre)
+                    if st.checkbox(alumno["Alumno"], key=f"{grupo}_{alumno['Alumno']}"):
+                        seleccionados.append(alumno["Alumno"])
                 
-                if st.form_submit_button("Registrar salidas"):
-                    registro_sheet = spreadsheet.worksheet("Registro")
-                    ahora = datetime.now()
-                    
-                    for alumno in seleccionados:
-                        registro_sheet.append_row([
-                            ahora.strftime("%Y-%m-%d"),
-                            ahora.strftime("%H:%M:%S"),
-                            docente,
-                            alumno,
-                            grupo
-                        ])
-                    
-                    st.success(f"Registrados {len(seleccionados)} alumnos")
-                    st.balloons()
+                if st.form_submit_button("Registrar salidas 🚀"):
+                    try:
+                        registro_sheet = gc.open("salidasbano").worksheet("Registro")
+                        ahora = datetime.now()
+                        
+                        for alumno in seleccionados:
+                            registro_sheet.append_row([
+                                ahora.strftime("%Y-%m-%d"),
+                                ahora.strftime("%H:%M:%S"),
+                                docente,
+                                alumno,
+                                grupo
+                            ])
+                        
+                        st.success(f"✅ {len(seleccionados)} registros guardados")
+                        st.balloons()
+                    except Exception as e:
+                        st.error(f"Error guardando registros: {str(e)}")
         else:
-            st.warning("No hay alumnos registrados en este grupo")
-            
-        # Debug: Mostrar datos relevantes
-        with st.expander("Datos de depuración"):
-            st.write("**Horario actual:**", horario_actual)
-            st.write("**Alumnos del grupo:**", alumnos_grupo)
+            st.warning("⚠️ No hay alumnos registrados en este grupo")
             
     else:
-        st.warning("No hay clase programada en este horario")
+        st.warning("⏳ No hay clase programada en este horario")
 
-    if st.button("Cambiar usuario"):
+    # 10. Opción para cambiar usuario
+    if st.button("🔁 Cambiar usuario"):
         CONFIG_FILE.unlink(missing_ok=True)
         st.rerun()
