@@ -1,0 +1,2467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>OneNote Clon - Figuras 2D/3D, Rotación, Colores, Relleno y Nuevas Figuras</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      user-select: none;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    .container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    /* Panel de colores */
+    #colorSidebar {
+      position: absolute;
+      left: 0;
+      top: 50px;
+      width: 50px;
+      background: rgba(255,255,255,0.95);
+      padding: 5px;
+      z-index: 20;
+      border-right: 1px solid #ccc;
+      text-align: center;
+    }
+    #pencilThicknessContainer,
+    #highlighterThicknessContainer {
+      margin-bottom: 5px;
+    }
+    #pencilThicknessContainer label,
+    #highlighterThicknessContainer label {
+      font-size: 10px;
+    }
+    .color-option {
+      width: 30px;
+      height: 30px;
+      margin: 5px auto;
+      border: 1px solid #ccc;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .highlight-color {
+      width: 30px;
+      height: 30px;
+      margin: 5px auto;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      border-radius: 0;
+    }
+    /* Barra superior de herramientas */
+    #toolbar {
+      position: absolute;
+      top: 0;
+      left: 60px;
+      right: 0;
+      height: 50px;
+      background: rgba(255,255,255,0.95);
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 5px;
+      border-bottom: 1px solid #ccc;
+    }
+    #toolbar button {
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    #toolbar button.active {
+      background-color: #007bff;
+      color: white;
+      border-color: #007bff;
+    }
+    #toolbar label {
+      font-size: 12px;
+      margin: 0 5px;
+    }
+    /* Submenú principal de Figuras */
+    #figurasSubmenu {
+      position: absolute;
+      top: 50px;
+      left: 60px;
+      background: rgba(255,255,255,0.95);
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      padding: 5px;
+      display: none;
+      z-index: 16;
+    }
+    #figurasSubmenu button {
+      display: block;
+      margin: 3px 0;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      width: 150px;
+      text-align: left;
+    }
+    /* Submenú para Prismas 3D */
+    #prismaSubmenu {
+      position: absolute;
+      top: 50px;
+      left: 220px;
+      background: rgba(255,255,255,0.95);
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      padding: 5px;
+      display: none;
+      z-index: 17;
+    }
+    #prismaSubmenu button {
+      display: block;
+      margin: 3px 0;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      width: 150px;
+      text-align: left;
+    }
+    /* Barra derecha: Zoom, limpiar, navegación, minimapa y deshacer/rehacer */
+    #zoomControls {
+      position: absolute;
+      right: 10px;
+      top: 60px;
+      z-index: 25;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      padding: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      text-align: center;
+    }
+    #zoomControls button {
+      padding: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    /* Controles de deshacer/rehacer */
+    #undoRedoControls {
+      margin-top: 10px;
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+    }
+    #undoRedoControls button {
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      border: 1px solid #ccc;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+    /* Botones para Abrir y Guardar Nota */
+    #noteButtons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 21;
+      display: flex;
+      gap: 5px;
+    }
+    #noteButtons button {
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    /* Lienzo */
+    #noteCanvas {
+      position: absolute;
+      top: 50px;
+      left: 60px;
+      background: #fff;
+      border: 1px solid #ccc;
+      touch-action: none;
+    }
+    /* Minimap */
+    #minimap {
+      width: 100px;
+      height: 100px;
+      border: 1px solid #ccc;
+      background: #fff;
+      display: block;
+      margin: 5px auto;
+    }
+    /* Icono para mover objeto seleccionado */
+    #moveIcon {
+      position: absolute;
+      display: none;
+      z-index: 30;
+      background: #007bff;
+      color: white;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+      cursor: move;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Panel de colores -->
+    <div id="colorSidebar">
+      <div id="pencilThicknessContainer">
+        <label for="pencilThickness">Grosor lápiz:</label>
+        <input type="range" id="pencilThickness" min="1" max="10" value="2" style="width:40px;" onchange="pencilThickness = parseInt(this.value)">
+      </div>
+      <div class="color-option" data-color="#000" style="background: #000;" onclick="setTool('pencil'); setColor('#000')"></div>
+      <div class="color-option" data-color="#f00" style="background: #f00;" onclick="setTool('pencil'); setColor('#f00')"></div>
+      <div class="color-option" data-color="#00f" style="background: #00f;" onclick="setTool('pencil'); setColor('#00f')"></div>
+      <div class="color-option" data-color="#0a0" style="background: #0a0;" onclick="setTool('pencil'); setColor('#0a0')"></div>
+      <div class="color-option" data-color="#ff0" style="background: #ff0;" onclick="setTool('pencil'); setColor('#ff0')"></div>
+      <div class="color-option" data-color="#f0f" style="background: #f0f;" onclick="setTool('pencil'); setColor('#f0f')"></div>
+      <div class="color-option" data-color="#ffa500" style="background: #ffa500;" onclick="setTool('pencil'); setColor('#ffa500')"></div>
+      <div id="highlighterThicknessContainer">
+        <label for="highlighterThickness">Grosor subrayado:</label>
+        <input type="range" id="highlighterThickness" min="1" max="20" value="10" style="width:40px;" onchange="highlighterThickness = parseInt(this.value)">
+      </div>
+      <div id="highlightColors">
+        <div class="highlight-color" data-color="#ff0000" style="background: #ff0000;" onclick="setTool('highlight'); setColor('#ff0000');"></div>
+        <div class="highlight-color" data-color="#00ff00" style="background: #00ff00;" onclick="setTool('highlight'); setColor('#00ff00');"></div>
+        <div class="highlight-color" data-color="#0000ff" style="background: #0000ff;" onclick="setTool('highlight'); setColor('#0000ff');"></div>
+        <div class="highlight-color" data-color="#ffff00" style="background: #ffff00;" onclick="setTool('highlight'); setColor('#ffff00');"></div>
+      </div>
+    </div>
+    <!-- Barra superior de herramientas -->
+    <div id="toolbar">
+      <button id="btn-pencil" class="tool-button" onclick="setTool('pencil')">✏️</button>
+      <button id="btn-highlighter" class="tool-button" onclick="setTool('highlight')">🖍</button>
+      <button id="btn-eraser" class="tool-button" onclick="setTool('eraser')" style="font-size: 24px;">🧽</button>
+      <button id="btn-select" class="tool-button" onclick="setTool('select')">Seleccionar</button>
+      <button id="btn-image" class="tool-button" onclick="document.getElementById('imageInput').click()">Imagen</button>
+      <input type="file" id="imageInput" style="display:none" accept="image/*" onchange="handleImageUpload(event)">
+      <button id="btn-figuras" class="tool-button" onclick="toggleFigurasSubmenu(); setTool('figuras')">Figuras</button>
+      <button id="btn-pdf" class="tool-button" onclick="document.getElementById('pdfInput').click()">PDF</button>
+      <input type="file" id="pdfInput" style="display:none" accept="application/pdf" onchange="handlePdfUpload(event)">
+      <label>Borde: <input type="color" id="borderColorPicker" value="#000000"></label>
+      <label>Relleno: <input type="color" id="fillColorPicker" value="#ffffff"></label>
+      <label>Transparencia: <input type="range" id="fillTransparencySlider" min="0" max="1" step="0.05" value="1"></label>
+      <span id="transformControls">
+        <button onclick="rotateSelected(5)">↻</button>
+        <button onclick="rotateSelected(-5)">↺</button>
+        <button onclick="scaleSelected(1.1)">➕</button>
+        <button onclick="scaleSelected(0.9)">➖</button>
+        <button onclick="bringToFront()">🔼</button>
+        <button onclick="sendToBack()">🔽</button>
+      </span>
+    </div>
+    <!-- Botones para Abrir y Guardar Nota -->
+    <div id="noteButtons">
+      <button id="openNoteBtn" onclick="document.getElementById('openNoteInput').click()">Abrir Nota</button>
+      <button id="saveNoteBtn" onclick="saveNote()">Guardar Nota</button>
+    </div>
+    <input type="file" id="openNoteInput" style="display:none" accept="application/json" onchange="handleNoteOpen(event)">
+    <!-- Submenú principal de Figuras (se han eliminado Cubo, Cono y Cilindro) -->
+    <div id="figurasSubmenu">
+      <button onclick="setTool('rectangle'); toggleFigurasSubmenu()">Rectángulo</button>
+      <button onclick="setTool('circle'); toggleFigurasSubmenu()">Círculo</button>
+      <button onclick="setTool('triangle'); toggleFigurasSubmenu()">Triángulo</button>
+      <button onclick="setTool('ellipse'); toggleFigurasSubmenu()">Elipse</button>
+      <button onclick="setTool('pentagon'); toggleFigurasSubmenu()">Pentágono</button>
+      <button onclick="setTool('star'); toggleFigurasSubmenu()">Estrella 2D</button>
+      <button onclick="setTool('line'); toggleFigurasSubmenu()">Línea</button>
+      <button onclick="setTool('hexagon'); toggleFigurasSubmenu()">Hexágono</button>
+      <button onclick="togglePrismaSubmenu()">Prismas 3D</button>
+      <button onclick="setTool('star3d'); toggleFigurasSubmenu()">Estrella 3D</button>
+      <button onclick="setTool('heart'); toggleFigurasSubmenu()">Corazón</button>
+    </div>
+    <!-- Submenú para Prismas 3D -->
+    <div id="prismaSubmenu">
+      <button onclick="setTool('prisma'); togglePrismaSubmenu()">Rectangular</button>
+      <button onclick="setTool('prismaPentagonal'); togglePrismaSubmenu()">Pentagonal</button>
+    </div>
+    <!-- Menú derecho: Zoom, limpiar, navegación, minimapa y botones de deshacer/rehacer -->
+    <div id="zoomControls">
+      <button onclick="zoomCanvas(1.1)">➕</button>
+      <button onclick="zoomCanvas(0.9)">➖</button>
+      <button onclick="clearCanvas()" title="Limpiar Lienzo">🧹</button>
+      <button onclick="resetView()" title="Ir a la esquina superior izquierda">🏠</button>
+      <canvas id="minimap" width="100" height="100"></canvas>
+      <div id="arrowControls" style="margin-top:5px;">
+        <button onclick="panCanvas(0, 50)" title="Pan Arriba" style="width:30px; height:30px;">▲</button>
+        <div>
+          <button onclick="panCanvas(50, 0)" title="Pan Izquierda" style="width:30px; height:30px;">◀</button>
+          <button onclick="panCanvas(-50, 0)" title="Pan Derecha" style="width:30px; height:30px;">▶</button>
+        </div>
+        <button onclick="panCanvas(0, -50)" title="Pan Abajo" style="width:30px; height:30px;">▼</button>
+      </div>
+      <div id="undoRedoControls">
+        <button id="undoBtn" title="Deshacer">↺</button>
+        <button id="redoBtn" title="Rehacer">↻</button>
+      </div>
+    </div>
+    <!-- Lienzo -->
+    <canvas id="noteCanvas" width="3000" height="3000"></canvas>
+    <!-- Icono para mover objeto seleccionado -->
+    <div id="moveIcon">Mover</div>
+  </div>
+  <script>
+    // UTILIDADES
+    function distance(p1, p2) {
+      return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+    }
+    function shadeColor(color, percent) {
+      let R = parseInt(color.substring(1, 3), 16);
+      let G = parseInt(color.substring(3, 5), 16);
+      let B = parseInt(color.substring(5, 7), 16);
+      R = parseInt(R * (100 + percent) / 100);
+      G = parseInt(G * (100 + percent) / 100);
+      B = parseInt(B * (100 + percent) / 100);
+      R = (R < 255) ? R : 255;
+      G = (G < 255) ? G : 255;
+      B = (B < 255) ? B : 255;
+      let RR = ((R.toString(16).length == 1) ? "0" + R.toString(16) : R.toString(16));
+      let GG = ((G.toString(16).length == 1) ? "0" + G.toString(16) : G.toString(16));
+      let BB = ((B.toString(16).length == 1) ? "0" + B.toString(16) : B.toString(16));
+      return "#" + RR + GG + BB;
+    }
+    // VARIABLES GLOBALES
+    let drawingMode = 'pencil';
+    let currentColor = '#000';
+    let currentBorderColor = "#000000";
+    let currentFillColor = "#ffffff";
+    let currentFillTransparency = 1;
+    let drawnObjects = [];
+    let selectedObjects = [];
+    let currentDrawing = null;
+    let isDrawing = false;
+    let canvasZoom = 1;
+    let isDraggingHandle = false;
+    let activeHandle = null;
+    let pencilThickness = 2;
+    let highlighterThickness = 10;
+    // Panning y Selección
+    let canvasOffsetX = 0, canvasOffsetY = 0;
+    let isSelectingRect = false;
+    let selectionStart = { x: 0, y: 0 };
+    let selectionRect = { x: 0, y: 0, width: 0, height: 0 };
+    let isDraggingSelection = false;
+    let dragStartForSelection = { x: 0, y: 0 };
+    let originalPositionsForSelection = [];
+    // Gestos táctiles
+    let activeTouchPointers = {};
+    let gesture = null;
+    // Controles para dimensiones en Prismas 3D
+    let activeDimension = null; // "ancho", "alto" o "largo"
+    let dimensionDragStart = null;
+    let initialDimensions = null; // { width, height, depth }
+    // Historial para deshacer/rehacer
+    let undoStack = [];
+    let redoStack = [];
+    const canvas = document.getElementById('noteCanvas');
+    const ctx = canvas.getContext('2d');
+    // Minimapa
+    const minimap = document.getElementById('minimap');
+    const mctx = minimap.getContext('2d');
+    const minimapScale = minimap.width / canvas.width;
+    // FUNCIONES DE CAPA
+    function bringToFront() {
+      if (selectedObjects.length > 0) {
+        selectedObjects.forEach(obj => {
+          let index = drawnObjects.indexOf(obj);
+          if (index !== -1) {
+            drawnObjects.splice(index, 1);
+            drawnObjects.push(obj);
+          }
+        });
+        redraw();
+      }
+    }
+    function sendToBack() {
+      if (selectedObjects.length > 0) {
+        selectedObjects.forEach(obj => {
+          let index = drawnObjects.indexOf(obj);
+          if (index !== -1) {
+            drawnObjects.splice(index, 1);
+            drawnObjects.unshift(obj);
+          }
+        });
+        redraw();
+      }
+    }
+    // Ocultar submenús
+    function hideSubmenus() {
+      document.getElementById('figurasSubmenu').style.display = 'none';
+      document.getElementById('prismaSubmenu').style.display = 'none';
+    }
+    // Historial (undo/redo)
+    function saveState() {
+      undoStack.push(JSON.stringify(drawnObjects));
+      redoStack = [];
+    }
+    function undo() {
+      if (undoStack.length > 0) {
+        redoStack.push(JSON.stringify(drawnObjects));
+        drawnObjects = JSON.parse(undoStack.pop());
+        redraw();
+      }
+    }
+    function redo() {
+      if (redoStack.length > 0) {
+        undoStack.push(JSON.stringify(drawnObjects));
+        drawnObjects = JSON.parse(redoStack.pop());
+        redraw();
+      }
+    }
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('redoBtn').addEventListener('click', redo);
+    // Actualiza inputs
+    document.getElementById('borderColorPicker').addEventListener('input', function(e) {
+      currentBorderColor = e.target.value;
+    });
+    document.getElementById('fillColorPicker').addEventListener('input', function(e) {
+      currentFillColor = e.target.value;
+    });
+    document.getElementById('fillTransparencySlider').addEventListener('input', function(e) {
+      currentFillTransparency = parseFloat(e.target.value);
+    });
+    function toggleFigurasSubmenu() {
+      const submenu = document.getElementById('figurasSubmenu');
+      submenu.style.display = submenu.style.display === 'block' ? 'none' : 'block';
+    }
+    function togglePrismaSubmenu() {
+      const submenu = document.getElementById('prismaSubmenu');
+      submenu.style.display = submenu.style.display === 'block' ? 'none' : 'block';
+    }
+    function getVerticesForShape(shape) {
+      if (shape.type === 'rectangle') {
+        return [
+          { x: shape.x, y: shape.y },
+          { x: shape.x + shape.width, y: shape.y },
+          { x: shape.x + shape.width, y: shape.y + shape.height },
+          { x: shape.x, y: shape.y + shape.height }
+        ];
+      } else if (shape.type === 'triangle') {
+        return [
+          { x: shape.x + shape.width / 2, y: shape.y },
+          { x: shape.x, y: shape.y + shape.height },
+          { x: shape.x + shape.width, y: shape.y + shape.height }
+        ];
+      } else if (shape.type === 'pentagon' || shape.type === 'prismaPentagonal') {
+        let centerX = shape.x + shape.width / 2;
+        let centerY = shape.y + shape.height / 2;
+        let radio = Math.min(shape.width, shape.height) * 0.45;
+        let verts = [];
+        for (let i = 0; i < 5; i++) {
+          let angle = (Math.PI / 10) + i * (2 * Math.PI / 5);
+          verts.push({ x: centerX + radio * Math.cos(angle), y: centerY + radio * Math.sin(angle) });
+        }
+        return verts;
+      } else if (shape.type === 'star') {
+        const centerX = shape.x + shape.width / 2, centerY = shape.y + shape.height / 2;
+        const outerRadius = Math.min(shape.width, shape.height) / 2;
+        const innerRadius = outerRadius * 0.5;
+        let verts = [];
+        for (let i = 0; i < 10; i++) {
+          const angle = Math.PI / 5 * i - Math.PI / 2;
+          const r = (i % 2 === 0) ? outerRadius : innerRadius;
+          verts.push({ x: centerX + r * Math.cos(angle), y: centerY + r * Math.sin(angle) });
+        }
+        return verts;
+      } else if (shape.type === 'hexagon') {
+        const centerX = shape.x + shape.width / 2, centerY = shape.y + shape.height / 2;
+        const radius = Math.min(shape.width, shape.height) / 2;
+        let verts = [];
+        for (let i = 0; i < 6; i++) {
+          let theta = (Math.PI * 2 / 6) * i - Math.PI / 2;
+          verts.push({ x: centerX + radius * Math.cos(theta), y: centerY + radius * Math.sin(theta) });
+        }
+        return verts;
+      }
+      return [];
+    }
+    function getBoundingBox(obj) {
+      if (obj.vertices) {
+        let xs = obj.vertices.map(v => v.x);
+        let ys = obj.vertices.map(v => v.y);
+        return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+      }
+      if (obj.type === 'circle' || obj.type === 'sphere') {
+        return { x: obj.x - obj.radius, y: obj.y - obj.radius, width: 2 * obj.radius, height: 2 * obj.radius };
+      } else if (obj.type === 'ellipse' || obj.type === 'cube' || obj.type === 'cylinder' || obj.type === 'cone' || obj.type === 'prisma' || obj.type === 'prismaPentagonal') {
+        return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+      } else if (obj.type === 'pencil' || obj.type === 'highlight' || obj.type === 'eraser') {
+        if (obj.points && obj.points.length > 0) {
+          let xs = obj.points.map(p => p.x);
+          let ys = obj.points.map(p => p.y);
+          return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+        }
+      } else if (obj.type === 'image' || obj.type === 'pdf-page') {
+        return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+      }
+      if (obj.type === 'line') {
+        return { x: Math.min(obj.x1, obj.x2), y: Math.min(obj.y1, obj.y2), width: Math.abs(obj.x2 - obj.x1), height: Math.abs(obj.y2 - obj.y1) };
+      }
+      return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+    }
+    function getGroupBoundingBox(objects) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      objects.forEach(obj => {
+        const bbox = getBoundingBox(obj);
+        minX = Math.min(minX, bbox.x);
+        minY = Math.min(minY, bbox.y);
+        maxX = Math.max(maxX, bbox.x + bbox.width);
+        maxY = Math.max(maxY, bbox.y + bbox.height);
+      });
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    }
+    function rectsIntersect(r1, r2) {
+      return !(r2.x > r1.x + r1.width ||
+               r2.x + r2.width < r1.x ||
+               r2.y > r1.y + r1.height ||
+               r2.y + r2.height < r1.y);
+    }
+    function updateToolbarActive() {
+      const toolButtons = document.querySelectorAll('.tool-button');
+      toolButtons.forEach(btn => btn.classList.remove('active'));
+      if (['rectangle', 'triangle', 'pentagon', 'star', 'hexagon', 'cube', 'sphere', 'cylinder', 'cone', 'star3d', 'heart', 'prisma', 'prismaPentagonal'].includes(drawingMode)) {
+        document.getElementById('btn-figuras').classList.add('active');
+      } else {
+        const btn = document.getElementById('btn-' + drawingMode);
+        if (btn) btn.classList.add('active');
+      }
+    }
+    function setTool(tool) {
+      drawingMode = tool;
+      currentDrawing = null;
+      if (tool !== 'select') selectedObjects = [];
+      updateToolbarActive();
+      redraw();
+      updateTransformControls();
+      updateMoveIcon();
+    }
+    function setColor(color) {
+      currentColor = color;
+      document.querySelectorAll('.color-option').forEach(opt => {
+        opt.style.border = (opt.getAttribute('data-color') === color) ? "3px solid #007bff" : "1px solid #ccc";
+      });
+    }
+    // Ocultar submenús al iniciar trazo
+    function hideSubmenus() {
+      document.getElementById('figurasSubmenu').style.display = 'none';
+      document.getElementById('prismaSubmenu').style.display = 'none';
+    }
+    // REDIBUJAR
+    function redraw() {
+      ctx.resetTransform();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(canvasZoom, 0, 0, canvasZoom, canvasOffsetX, canvasOffsetY);
+      drawnObjects.forEach(obj => drawObject(obj));
+      if (currentDrawing && drawingMode !== 'eraser') drawObject(currentDrawing);
+      if (drawingMode === 'select' && isSelectingRect) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0,0,255,0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 3]);
+        ctx.strokeRect(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
+        ctx.restore();
+      }
+      selectedObjects.forEach(obj => drawSelectionOutline(obj));
+      updateMinimap();
+    }
+    function drawObject(obj) {
+      ctx.save();
+      if (obj.vertices) {
+        ctx.beginPath();
+        ctx.moveTo(obj.vertices[0].x, obj.vertices[0].y);
+        for (let i = 1; i < obj.vertices.length; i++) {
+          ctx.lineTo(obj.vertices[i].x, obj.vertices[i].y);
+        }
+        if (obj.type !== 'line') ctx.closePath();
+        if (obj.fillColor) {
+          ctx.fillStyle = obj.fillColor;
+          let alpha = (obj.fillTransparency !== undefined ? obj.fillTransparency : currentFillTransparency);
+          ctx.globalAlpha = alpha;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.strokeStyle = obj.borderColor || obj.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+      if (obj.type === 'image' || obj.type === 'pdf-page') {
+        if (obj.rotation) {
+          const centerX = obj.x + obj.width / 2;
+          const centerY = obj.y + obj.height / 2;
+          ctx.translate(centerX, centerY);
+          ctx.rotate(obj.rotation * Math.PI / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+        ctx.drawImage(obj.img, obj.x, obj.y, obj.width, obj.height);
+      }
+      else if (obj.type === 'rectangle') {
+        ctx.save();
+        if (obj.rotation) {
+          const centerX = obj.x + obj.width / 2;
+          const centerY = obj.y + obj.height / 2;
+          ctx.translate(centerX, centerY);
+          ctx.rotate(obj.rotation * Math.PI / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+        if (obj.fillColor) {
+          ctx.fillStyle = obj.fillColor;
+          let alpha = (obj.fillTransparency !== undefined ? obj.fillTransparency : currentFillTransparency);
+          ctx.globalAlpha = alpha;
+          ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+          ctx.globalAlpha = 1;
+        }
+        ctx.strokeStyle = obj.borderColor || obj.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+        ctx.restore();
+      }
+      else if (obj.type === 'circle') {
+        ctx.save();
+        if (obj.rotation) {
+          ctx.translate(obj.x, obj.y);
+          ctx.rotate(obj.rotation * Math.PI / 180);
+          ctx.translate(-obj.x, -obj.y);
+        }
+        ctx.beginPath();
+        ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+        if (obj.fillColor) {
+          ctx.fillStyle = obj.fillColor;
+          let alpha = (obj.fillTransparency !== undefined ? obj.fillTransparency : currentFillTransparency);
+          ctx.globalAlpha = alpha;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.strokeStyle = obj.borderColor || obj.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+      else if (obj.type === 'ellipse') {
+        ctx.save();
+        if (obj.rotation) {
+          const centerX = obj.x + obj.width / 2;
+          const centerY = obj.y + obj.height / 2;
+          ctx.translate(centerX, centerY);
+          ctx.rotate(obj.rotation * Math.PI / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+        ctx.beginPath();
+        if (ctx.ellipse) {
+          ctx.ellipse(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.width / 2, obj.height / 2, 0, 0, Math.PI * 2);
+        } else {
+          ctx.rect(obj.x, obj.y, obj.width, obj.height);
+        }
+        if (obj.fillColor) {
+          ctx.fillStyle = obj.fillColor;
+          let alpha = (obj.fillTransparency !== undefined ? obj.fillTransparency : currentFillTransparency);
+          ctx.globalAlpha = alpha;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.strokeStyle = obj.borderColor || obj.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+      else if (obj.type === 'triangle') {
+        ctx.save();
+        if (obj.rotation) {
+          const centerX = obj.x + obj.width / 2;
+          const centerY = obj.y + obj.height / 2;
+          ctx.translate(centerX, centerY);
+          ctx.rotate(obj.rotation * Math.PI / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+        ctx.beginPath();
+        ctx.moveTo(obj.x + obj.width / 2, obj.y);
+        ctx.lineTo(obj.x, obj.y + obj.height);
+        ctx.lineTo(obj.x + obj.width, obj.y + obj.height);
+        ctx.closePath();
+        if (obj.fillColor) {
+          ctx.fillStyle = obj.fillColor;
+          let alpha = (obj.fillTransparency !== undefined ? obj.fillTransparency : currentFillTransparency);
+          ctx.globalAlpha = alpha;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.strokeStyle = obj.borderColor || obj.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+      // Prisma 3D rectangular
+      else if (obj.type === 'prisma') {
+        ctx.save();
+        if (obj.rotation) {
+          const centerX = obj.x + obj.width / 2;
+          const centerY = obj.y + obj.height / 2;
+          ctx.translate(centerX, centerY);
+          ctx.rotate(obj.rotation * Math.PI / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+        const factorPerspectiva = 0.5;
+        const profundidad = obj.depth !== undefined ? obj.depth : 120;
+        const offsetX = profundidad * factorPerspectiva;
+        const offsetY = profundidad * factorPerspectiva / 2;
+        ctx.globalAlpha = (obj.fillTransparency !== undefined ? obj.fillTransparency : 0.3);
+        // Cara lateral posterior
+        ctx.beginPath();
+        ctx.moveTo(obj.x, obj.y);
+        ctx.lineTo(obj.x + offsetX, obj.y - offsetY);
+        ctx.lineTo(obj.x + offsetX, obj.y + obj.height - offsetY);
+        ctx.lineTo(obj.x, obj.y + obj.height);
+        ctx.closePath();
+        ctx.fillStyle = obj.fillColor;
+        ctx.fill();
+        ctx.strokeStyle = obj.borderColor || obj.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Cara inferior
+        ctx.beginPath();
+        ctx.moveTo(obj.x, obj.y + obj.height);
+        ctx.lineTo(obj.x + offsetX, obj.y + obj.height - offsetY);
+        ctx.lineTo(obj.x + obj.width + offsetX, obj.y + obj.height - offsetY);
+        ctx.lineTo(obj.x + obj.width, obj.y + obj.height);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Cara posterior
+        ctx.beginPath();
+        ctx.moveTo(obj.x + offsetX, obj.y - offsetY);
+        ctx.lineTo(obj.x + obj.width + offsetX, obj.y - offsetY);
+        ctx.lineTo(obj.x + obj.width + offsetX, obj.y + obj.height - offsetY);
+        ctx.lineTo(obj.x + offsetX, obj.y + obj.height - offsetY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Cara frontal
+        ctx.beginPath();
+        ctx.rect(obj.x, obj.y, obj.width, obj.height);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Cara superior
+        ctx.beginPath();
+        ctx.moveTo(obj.x, obj.y);
+        ctx.lineTo(obj.x + offsetX, obj.y - offsetY);
+        ctx.lineTo(obj.x + obj.width + offsetX, obj.y - offsetY);
+        ctx.lineTo(obj.x + obj.width, obj.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Cara lateral derecha
+        ctx.beginPath();
+        ctx.moveTo(obj.x + obj.width, obj.y);
+        ctx.lineTo(obj.x + obj.width + offsetX, obj.y - offsetY);
+        ctx.lineTo(obj.x + obj.width + offsetX, obj.y + obj.height - offsetY);
+        ctx.lineTo(obj.x + obj.width, obj.y + obj.height);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.setLineDash([5, 3]);
+        let A = { x: obj.x, y: obj.y };
+        let B = { x: obj.x + obj.width, y: obj.y };
+        let C = { x: obj.x + obj.width, y: obj.y + obj.height };
+        let D = { x: obj.x, y: obj.y + obj.height };
+        let A1 = { x: obj.x + offsetX, y: obj.y - offsetY };
+        let B1 = { x: obj.x + obj.width + offsetX, y: obj.y - offsetY };
+        let C1 = { x: obj.x + obj.width + offsetX, y: obj.y + obj.height - offsetY };
+        let D1 = { x: obj.x + offsetX, y: obj.y + obj.height - offsetY };
+        ctx.beginPath();
+        ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.lineTo(D.x, D.y); ctx.closePath();
+        ctx.moveTo(A1.x, A1.y); ctx.lineTo(B1.x, B1.y); ctx.lineTo(C1.x, C1.y); ctx.lineTo(D1.x, D1.y); ctx.closePath();
+        ctx.moveTo(A.x, A.y); ctx.lineTo(A1.x, A1.y);
+        ctx.moveTo(B.x, B.y); ctx.lineTo(B1.x, B1.y);
+        ctx.moveTo(C.x, C.y); ctx.lineTo(C1.x, C1.y);
+        ctx.moveTo(D.x, D.y); ctx.lineTo(D1.x, D1.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+      // Prisma 3D pentagonal
+      else if (obj.type === 'prismaPentagonal') {
+        ctx.save();
+        if (obj.rotation) {
+          const centerX = obj.x + obj.width / 2;
+          const centerY = obj.y + obj.height / 2;
+          ctx.translate(centerX, centerY);
+          ctx.rotate(obj.rotation * Math.PI / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+        const factorPerspectiva = 0.6;
+        const profundidad = obj.depth !== undefined ? obj.depth : 120;
+        const offsetX = profundidad * factorPerspectiva;
+        const offsetY = profundidad * factorPerspectiva / 2;
+        // Calcular vértices de la base frontal (pentagonal)
+        let centerX = obj.x + obj.width / 2;
+        let centerY = obj.y + obj.height / 2;
+        let radio = Math.min(obj.width, obj.height) * 0.45;
+        let frontVertices = [];
+        for (let i = 0; i < 5; i++) {
+          let angle = (Math.PI / 10) + i * (2 * Math.PI / 5);
+          frontVertices.push({ x: centerX + radio * Math.cos(angle), y: centerY + radio * Math.sin(angle) });
+        }
+        // Vértices traseros: desplazados
+        let backVertices = frontVertices.map(v => ({ x: v.x + offsetX, y: v.y - offsetY }));
+        // Caras laterales
+        for (let i = 0; i < 5; i++) {
+          let next = (i + 1) % 5;
+          ctx.beginPath();
+          ctx.moveTo(frontVertices[i].x, frontVertices[i].y);
+          ctx.lineTo(frontVertices[next].x, frontVertices[next].y);
+          ctx.lineTo(backVertices[next].x, backVertices[next].y);
+          ctx.lineTo(backVertices[i].x, backVertices[i].y);
+          ctx.closePath();
+          ctx.fillStyle = obj.fillColor;
+          ctx.globalAlpha = (obj.fillTransparency !== undefined ? obj.fillTransparency : 0.3);
+          ctx.fill();
+          ctx.strokeStyle = obj.borderColor || obj.color;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        // Cara frontal
+        ctx.beginPath();
+        ctx.moveTo(frontVertices[0].x, frontVertices[0].y);
+        for (let i = 1; i < 5; i++) {
+          ctx.lineTo(frontVertices[i].x, frontVertices[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Cara trasera
+        ctx.beginPath();
+        ctx.moveTo(backVertices[0].x, backVertices[0].y);
+        for (let i = 1; i < 5; i++) {
+          ctx.lineTo(backVertices[i].x, backVertices[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Wireframe
+        ctx.globalAlpha = 1;
+        ctx.setLineDash([5, 3]);
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          ctx.moveTo(frontVertices[i].x, frontVertices[i].y);
+          ctx.lineTo(backVertices[i].x, backVertices[i].y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+      else if (obj.type === 'star3d') {
+        ctx.save();
+        if (obj.rotation) {
+          const centerX = obj.x + obj.width / 2;
+          const centerY = obj.y + obj.height / 2;
+          ctx.translate(centerX, centerY);
+          ctx.rotate(obj.rotation * Math.PI / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+        const centerX = obj.x + obj.width / 2, centerY = obj.y + obj.height / 2;
+        const outerRadius = Math.min(obj.width, obj.height) / 2;
+        const innerRadius = outerRadius * 0.5;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const angle = Math.PI / 5 * i - Math.PI / 2;
+          const r = (i % 2 === 0) ? outerRadius : innerRadius;
+          const x = centerX + r * Math.cos(angle);
+          const y = centerY + r * Math.sin(angle);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        if (obj.fillColor) {
+          ctx.fillStyle = obj.fillColor;
+          ctx.fill();
+        }
+        ctx.strokeStyle = obj.borderColor || obj.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+      else if (obj.type === 'heart') {
+        ctx.save();
+        if (obj.rotation) {
+          const centerX = obj.x + obj.width / 2;
+          const centerY = obj.y + obj.height / 2;
+          ctx.translate(centerX, centerY);
+          ctx.rotate(obj.rotation * Math.PI / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+        let x = obj.x, y = obj.y, width = obj.width, height = obj.height;
+        let topCurveHeight = height * 0.3;
+        ctx.beginPath();
+        ctx.moveTo(x + width / 2, y + height);
+        ctx.bezierCurveTo(x + width / 2 + width / 2, y + height - topCurveHeight,
+                          x + width, y + height - topCurveHeight * 2,
+                          x + width / 2, y);
+        ctx.bezierCurveTo(x, y + height - topCurveHeight * 2,
+                          x + width / 2 - width / 2, y + height - topCurveHeight,
+                          x + width / 2, y + height);
+        ctx.closePath();
+        if (obj.fillColor) {
+          ctx.fillStyle = obj.fillColor;
+          let alpha = (obj.fillTransparency !== undefined ? obj.fillTransparency : currentFillTransparency);
+          ctx.globalAlpha = alpha;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.strokeStyle = obj.borderColor || obj.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+      else if (obj.type === 'pencil') {
+        ctx.strokeStyle = obj.color;
+        ctx.lineWidth = obj.thickness || pencilThickness;
+        ctx.beginPath();
+        if (obj.points && obj.points.length > 0) {
+          ctx.moveTo(obj.points[0].x, obj.points[0].y);
+          for (let i = 1; i < obj.points.length; i++) {
+            ctx.lineTo(obj.points[i].x, obj.points[i].y);
+          }
+          ctx.stroke();
+        }
+      }
+      else if (obj.type === 'highlight') {
+        ctx.strokeStyle = obj.color;
+        ctx.lineWidth = obj.thickness || highlighterThickness;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        if (obj.points && obj.points.length > 0) {
+          ctx.moveTo(obj.points[0].x, obj.points[0].y);
+          for (let i = 1; i < obj.points.length; i++) {
+            ctx.lineTo(obj.points[i].x, obj.points[i].y);
+          }
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
+      else if (obj.type === 'eraser') {
+        // No se dibuja nada para la goma.
+      }
+      ctx.restore();
+    }
+    function drawSelectionOutline(obj) {
+      const bbox = getBoundingBox(obj);
+      ctx.save();
+      ctx.strokeStyle = 'blue';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 2]);
+      ctx.strokeRect(bbox.x - 3, bbox.y - 3, bbox.width + 6, bbox.height + 6);
+      if (obj.vertices) {
+        for (let v of obj.vertices) {
+          ctx.beginPath();
+          ctx.fillStyle = 'red';
+          ctx.arc(v.x, v.y, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      // Si el objeto es un prisma (rectangular o pentagonal), dibujar sus tres handles de dimensión
+      if (obj.type === 'prisma' || obj.type === 'prismaPentagonal') {
+        const factorPerspectiva = (obj.type === 'prisma') ? 0.5 : 0.6;
+        const offsetX = obj.depth * factorPerspectiva;
+        const offsetY = obj.depth * factorPerspectiva / 2;
+        // Handle para largo (verde): en la parte superior central de la cara trasera
+        let handleLargo = { x: obj.x + obj.width / 2 + offsetX, y: obj.y - offsetY };
+        ctx.beginPath();
+        ctx.fillStyle = 'green';
+        ctx.arc(handleLargo.x, handleLargo.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        // Handle para ancho (rojo): centro del borde derecho
+        let handleAncho = { x: obj.x + obj.width, y: obj.y + obj.height / 2 };
+        ctx.beginPath();
+        ctx.fillStyle = 'red';
+        ctx.arc(handleAncho.x, handleAncho.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        // Handle para alto (azul): centro del borde inferior
+        let handleAlto = { x: obj.x + obj.width / 2, y: obj.y + obj.height };
+        ctx.beginPath();
+        ctx.fillStyle = 'blue';
+        ctx.arc(handleAlto.x, handleAlto.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    function updateTransformControls() {
+      const transformControls = document.getElementById('transformControls');
+      transformControls.style.display = (drawingMode === 'select' && selectedObjects.length > 0) ? 'inline' : 'none';
+    }
+    function updateMoveIcon() {
+      const moveIcon = document.getElementById('moveIcon');
+      if (selectedObjects.length === 1) {
+        const bbox = getBoundingBox(selectedObjects[0]);
+        moveIcon.style.left = (60 + bbox.x * canvasZoom + canvasOffsetX - 10) + 'px';
+        moveIcon.style.top = (50 + bbox.y * canvasZoom + canvasOffsetY - 10) + 'px';
+        moveIcon.style.display = 'block';
+      } else {
+        moveIcon.style.display = 'none';
+      }
+    }
+    function rotateSelected(deg) {
+      if (selectedObjects.length === 0) return;
+      if (selectedObjects.length === 1) {
+        let obj = selectedObjects[0];
+        if (obj.type === 'pencil' || obj.type === 'highlight' || obj.type === 'eraser') {
+          let bbox = getBoundingBox(obj);
+          let center = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+          let rad = deg * Math.PI / 180;
+          obj.points = obj.points.map(p => {
+            let dx = p.x - center.x, dy = p.y - center.y;
+            return { x: center.x + dx * Math.cos(rad) - dy * Math.sin(rad),
+                     y: center.y + dx * Math.sin(rad) + dy * Math.cos(rad) };
+          });
+        } else if (obj.vertices) {
+          let center = { x: 0, y: 0 };
+          obj.vertices.forEach(v => { center.x += v.x; center.y += v.y; });
+          center.x /= obj.vertices.length;
+          center.y /= obj.vertices.length;
+          let rad = deg * Math.PI / 180;
+          obj.vertices = obj.vertices.map(v => {
+            let dx = v.x - center.x, dy = v.y - center.y;
+            return { x: center.x + dx * Math.cos(rad) - dy * Math.sin(rad),
+                     y: center.y + dx * Math.sin(rad) + dy * Math.cos(rad) };
+          });
+        } else {
+          obj.rotation = (obj.rotation || 0) + deg;
+        }
+      } else {
+        let groupBox = getGroupBoundingBox(selectedObjects);
+        let center = { x: groupBox.x + groupBox.width / 2, y: groupBox.y + groupBox.height / 2 };
+        selectedObjects.forEach(obj => {
+          if (obj.type === 'pencil' || obj.type === 'highlight' || obj.type === 'eraser') {
+            let rad = deg * Math.PI / 180;
+            obj.points = obj.points.map(p => {
+              let dx = p.x - center.x, dy = p.y - center.y;
+              return { x: center.x + dx * Math.cos(rad) - dy * Math.sin(rad),
+                       y: center.y + dx * Math.sin(rad) + dy * Math.cos(rad) };
+            });
+          } else if (obj.vertices) {
+            let rad = deg * Math.PI / 180;
+            obj.vertices = obj.vertices.map(v => {
+              let dx = v.x - center.x, dy = v.y - center.y;
+              return { x: center.x + dx * Math.cos(rad) - dy * Math.sin(rad),
+                       y: center.y + dx * Math.sin(rad) + dy * Math.cos(rad) };
+            });
+          } else if (obj.type === 'line') {
+            let rad = deg * Math.PI / 180;
+            let mid = { x: (obj.x1 + obj.x2) / 2, y: (obj.y1 + obj.y2) / 2 };
+            obj.x1 = mid.x + (obj.x1 - mid.x) * Math.cos(rad) - (obj.y1 - mid.y) * Math.sin(rad);
+            obj.y1 = mid.y + (obj.x1 - mid.x) * Math.sin(rad) + (obj.y1 - mid.y) * Math.cos(rad);
+            obj.x2 = mid.x + (obj.x2 - mid.x) * Math.cos(rad) - (obj.y2 - mid.y) * Math.sin(rad);
+            obj.y2 = mid.y + (obj.y2 - mid.y) * Math.sin(rad) + (obj.x2 - mid.x) * Math.cos(rad);
+            obj.rotation = (obj.rotation || 0) + deg;
+          } else {
+            obj.rotation = (obj.rotation || 0) + deg;
+          }
+        });
+      }
+      redraw();
+      updateMoveIcon();
+    }
+    function scaleSelected(factor) {
+      selectedObjects.forEach(obj => {
+        if (obj.vertices) {
+          let center = { x: 0, y: 0 };
+          obj.vertices.forEach(v => { center.x += v.x; center.y += v.y; });
+          center.x /= obj.vertices.length;
+          center.y /= obj.vertices.length;
+          obj.vertices = obj.vertices.map(v => {
+            return { x: center.x + (v.x - center.x) * factor,
+                     y: center.y + (v.y - center.y) * factor };
+          });
+        } else if (obj.type === 'circle' || obj.type === 'sphere') {
+          let bbox = getBoundingBox(obj);
+          let newWidth = bbox.width * factor, newHeight = bbox.height * factor;
+          let newRadius = Math.min(newWidth, newHeight) / 2;
+          obj.x = bbox.x + newWidth / 2;
+          obj.y = bbox.y + newHeight / 2;
+          obj.radius = newRadius;
+        }
+        // Para prisma (rectangular o pentagonal) escalamos ancho, alto y profundidad
+        else if (obj.type === 'prisma' || obj.type === 'prismaPentagonal') {
+          let centerX = obj.x + obj.width / 2;
+          let centerY = obj.y + obj.height / 2;
+          obj.width *= factor;
+          obj.height *= factor;
+          obj.depth *= factor;
+          obj.x = centerX - obj.width / 2;
+          obj.y = centerY - obj.height / 2;
+        }
+        else if (obj.type === 'cube' || obj.type === 'star3d') {
+          let centerX = obj.x + obj.width / 2;
+          let centerY = obj.y + obj.height / 2;
+          obj.width *= factor;
+          obj.height *= factor;
+          obj.x = centerX - obj.width / 2;
+          obj.y = centerY - obj.height / 2;
+        }
+        else if (obj.type === 'ellipse' || obj.type === 'heart') {
+          obj.x *= factor;
+          obj.y *= factor;
+          obj.width *= factor;
+          obj.height *= factor;
+        } else if (obj.type === 'line') {
+          const midX = (obj.x1 + obj.x2) / 2, midY = (obj.y1 + obj.y2) / 2;
+          obj.x1 = midX + (obj.x1 - midX) * factor;
+          obj.y1 = midY + (obj.y1 - midY) * factor;
+          obj.x2 = midX + (obj.x2 - midX) * factor;
+          obj.y2 = midY + (obj.y2 - midY) * factor;
+        } else if (obj.type === 'pencil' || obj.type === 'highlight' || obj.type === 'eraser') {
+          const bbox = getBoundingBox(obj);
+          const centerX = bbox.x + bbox.width / 2, centerY = bbox.y + bbox.height / 2;
+          obj.points = obj.points.map(p => ({
+            x: centerX + (p.x - centerX) * factor,
+            y: centerY + (p.y - centerY) * factor
+          }));
+        } else if (obj.type === 'image' || obj.type === 'pdf-page') {
+          const centerX = obj.x + obj.width / 2, centerY = obj.y + obj.height / 2;
+          obj.width *= factor;
+          obj.height *= factor;
+          obj.x = centerX - obj.width / 2;
+          obj.y = centerY - obj.height / 2;
+        }
+      });
+      redraw();
+      updateMoveIcon();
+    }
+    // EVENTOS DEL CANVAS
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (e.pointerType === "touch") {
+        activeTouchPointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+        if (Object.keys(activeTouchPointers).length === 2) {
+          const pointers = Object.values(activeTouchPointers);
+          const dx = pointers[0].x - pointers[1].x;
+          const dy = pointers[0].y - pointers[1].y;
+          const distanceVal = Math.sqrt(dx * dx + dy * dy);
+          const midpoint = { x: (pointers[0].x + pointers[1].x) / 2, y: (pointers[0].y + pointers[1].y) / 2 };
+          gesture = {
+            startDistance: distanceVal,
+            startMidpoint: midpoint,
+            initialCanvasZoom: canvasZoom,
+            initialCanvasOffsetX: canvasOffsetX,
+            initialCanvasOffsetY: canvasOffsetY
+          };
+        }
+        return;
+      }
+      if (e.pointerType === "pen" || e.pointerType === "mouse") hideSubmenus();
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left - canvasOffsetX) / canvasZoom;
+      const y = (e.clientY - rect.top - canvasOffsetY) / canvasZoom;
+      // En modo select, si se ha seleccionado un prisma (rectangular o pentagonal), comprobar si se pulsa alguno de sus handles de dimensión
+      if (drawingMode === 'select' && selectedObjects.length === 1 && (selectedObjects[0].type === 'prisma' || selectedObjects[0].type === 'prismaPentagonal')) {
+        let obj = selectedObjects[0];
+        const factorPerspectiva = (obj.type === 'prisma') ? 0.5 : 0.6;
+        const offsetX = obj.depth * factorPerspectiva;
+        const offsetY = obj.depth * factorPerspectiva / 2;
+        const handleLargo = { x: obj.x + obj.width / 2 + offsetX, y: obj.y - offsetY };
+        const handleAncho = { x: obj.x + obj.width, y: obj.y + obj.height / 2 };
+        const handleAlto = { x: obj.x + obj.width / 2, y: obj.y + obj.height };
+        if (distance({ x, y }, handleLargo) < 10) {
+          activeDimension = 'largo';
+          dimensionDragStart = { x: e.clientX, y: e.clientY };
+          initialDimensions = { width: obj.width, height: obj.height, depth: obj.depth };
+          return;
+        } else if (distance({ x, y }, handleAncho) < 10) {
+          activeDimension = 'ancho';
+          dimensionDragStart = { x: e.clientX, y: e.clientY };
+          initialDimensions = { width: obj.width, height: obj.height, depth: obj.depth };
+          return;
+        } else if (distance({ x, y }, handleAlto) < 10) {
+          activeDimension = 'alto';
+          dimensionDragStart = { x: e.clientX, y: e.clientY };
+          initialDimensions = { width: obj.width, height: obj.height, depth: obj.depth };
+          return;
+        }
+      }
+      if (drawingMode === 'select' && selectedObjects.length === 1 && selectedObjects[0].vertices) {
+        let obj = selectedObjects[0];
+        for (let i = 0; i < obj.vertices.length; i++) {
+          let v = obj.vertices[i];
+          let dx = x - v.x, dy = y - v.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 6) {
+            isDraggingHandle = true;
+            activeHandle = { object: obj, index: i };
+            return;
+          }
+        }
+      }
+      if (drawingMode === 'select' && selectedObjects.length === 1 &&
+         (selectedObjects[0].type === 'circle' || selectedObjects[0].type === 'ellipse' || selectedObjects[0].type === 'sphere')) {
+        let obj = selectedObjects[0];
+        let bbox = getBoundingBox(obj);
+        let handles = [
+          { x: bbox.x, y: bbox.y },
+          { x: bbox.x + bbox.width, y: bbox.y },
+          { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+          { x: bbox.x, y: bbox.y + bbox.height }
+        ];
+        for (let i = 0; i < handles.length; i++) {
+          let h = handles[i];
+          let dx = x - h.x, dy = y - h.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 6) {
+            isDraggingHandle = true;
+            activeHandle = { object: obj, type: 'bbox', index: i, originalBBox: bbox };
+            return;
+          }
+        }
+      }
+      if (drawingMode === 'select') {
+        let pointInSelected = false;
+        for (let obj of selectedObjects) {
+          const bbox = getBoundingBox(obj);
+          if (x >= bbox.x && x <= bbox.x + bbox.width && y >= bbox.y && y <= bbox.y + bbox.height) {
+            pointInSelected = true;
+            break;
+          }
+        }
+        if (pointInSelected) {
+          isDraggingSelection = true;
+          dragStartForSelection = { x, y };
+          originalPositionsForSelection = selectedObjects.map(obj => {
+            if (obj.type === 'line') {
+              return { x1: obj.x1, y1: obj.y1, x2: obj.x2, y2: obj.y2 };
+            } else if (obj.type === 'pencil' || obj.type === 'highlight' || obj.type === 'eraser') {
+              return { points: obj.points.map(p => ({ ...p })) };
+            } else if (obj.vertices) {
+              return { vertices: obj.vertices.map(v => ({ ...v })) };
+            } else {
+              return { x: obj.x, y: obj.y };
+            }
+          });
+          return;
+        } else {
+          selectedObjects = [];
+          isSelectingRect = true;
+          selectionStart = { x, y };
+          selectionRect = { x, y, width: 0, height: 0 };
+          updateTransformControls();
+          updateMoveIcon();
+          redraw();
+          return;
+        }
+      }
+      if (e.pointerType === "pen" || e.pointerType === "mouse") {
+        isDrawing = true;
+        if (['pencil', 'highlight', 'eraser'].includes(drawingMode)) {
+          currentDrawing = { type: drawingMode, color: currentColor, points: [{ x, y }], rotation: 0, thickness: (drawingMode === 'pencil' ? pencilThickness : highlighterThickness) };
+        }
+        else if (drawingMode === 'line') {
+          currentDrawing = { type: 'line', borderColor: currentBorderColor, x1: x, y1: y, x2: x, y2: y, rotation: 0 };
+        }
+        else if (drawingMode === 'cube') {
+          currentDrawing = { type: 'cube', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'sphere') {
+          currentDrawing = { type: 'sphere', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, radius: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'hexagon') {
+          currentDrawing = { type: 'hexagon', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'cylinder') {
+          currentDrawing = { type: 'cylinder', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'cone') {
+          currentDrawing = { type: 'cone', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'star3d') {
+          currentDrawing = { type: 'star3d', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'heart') {
+          currentDrawing = { type: 'heart', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'prisma') {
+          currentDrawing = { type: 'prisma', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, depth: 120, rotation: 0 };
+        }
+        else if (drawingMode === 'prismaPentagonal') {
+          currentDrawing = { type: 'prismaPentagonal', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, depth: 120, rotation: 0 };
+        }
+        else if (['rectangle', 'triangle', 'pentagon', 'star', 'ellipse'].includes(drawingMode)) {
+          currentDrawing = { type: drawingMode, borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        redraw();
+      }
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      e.preventDefault();
+      if (e.pointerType === "touch") {
+        activeTouchPointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+        const count = Object.keys(activeTouchPointers).length;
+        if (count === 1) {
+          let prev = activeTouchPointers[e.pointerId];
+          let dx = e.clientX - prev.x;
+          let dy = e.clientY - prev.y;
+          canvasOffsetX += dx;
+          canvasOffsetY += dy;
+          redraw();
+          updateMinimap();
+        } else if (count === 2 && gesture) {
+          const pointers = Object.values(activeTouchPointers);
+          const dxPinch = pointers[0].x - pointers[1].x;
+          const dyPinch = pointers[0].y - pointers[1].y;
+          const newDistance = Math.sqrt(dxPinch * dxPinch + dyPinch * dyPinch);
+          const newMidpoint = { x: (pointers[0].x + pointers[1].x) / 2, y: (pointers[0].y + pointers[1].y) / 2 };
+          const zoomFactor = newDistance / gesture.startDistance;
+          canvasZoom = gesture.initialCanvasZoom * zoomFactor;
+          const canvasPoint = {
+            x: (gesture.startMidpoint.x - gesture.initialCanvasOffsetX) / gesture.initialCanvasZoom,
+            y: (gesture.startMidpoint.y - gesture.initialCanvasOffsetY) / gesture.initialCanvasZoom
+          };
+          canvasOffsetX = newMidpoint.x - canvasPoint.x * canvasZoom;
+          canvasOffsetY = newMidpoint.y - canvasPoint.y * canvasZoom;
+          redraw();
+          updateMinimap();
+        }
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left - canvasOffsetX) / canvasZoom;
+      const y = (e.clientY - rect.top - canvasOffsetY) / canvasZoom;
+      if (activeDimension && selectedObjects.length === 1 && (selectedObjects[0].type === 'prisma' || selectedObjects[0].type === 'prismaPentagonal')) {
+        let prisma = selectedObjects[0];
+        if (activeDimension === 'ancho') {
+          prisma.width = Math.max(initialDimensions.width + (e.clientX - dimensionDragStart.x) / canvasZoom, 10);
+        } else if (activeDimension === 'alto') {
+          prisma.height = Math.max(initialDimensions.height + (e.clientY - dimensionDragStart.y) / canvasZoom, 10);
+        } else if (activeDimension === 'largo') {
+          prisma.depth = Math.max(initialDimensions.depth + (e.clientX - dimensionDragStart.x) / canvasZoom, 10);
+        }
+        redraw();
+        return;
+      }
+      if (isDraggingHandle && activeHandle && !activeHandle.type) {
+        activeHandle.object.vertices[activeHandle.index] = { x, y };
+        redraw();
+        return;
+      }
+      if (isDraggingHandle && activeHandle && activeHandle.type === 'bbox') {
+        let orig = activeHandle.originalBBox;
+        let newBBox = {};
+        switch (activeHandle.index) {
+          case 0:
+            newBBox.x = x;
+            newBBox.y = y;
+            newBBox.width = (orig.x + orig.width) - x;
+            newBBox.height = (orig.y + orig.height) - y;
+            break;
+          case 1:
+            newBBox.x = orig.x;
+            newBBox.y = y;
+            newBBox.width = x - orig.x;
+            newBBox.height = (orig.y + orig.height) - y;
+            break;
+          case 2:
+            newBBox.x = orig.x;
+            newBBox.y = orig.y;
+            newBBox.width = x - orig.x;
+            newBBox.height = y - orig.y;
+            break;
+          case 3:
+            newBBox.x = x;
+            newBBox.y = orig.y;
+            newBBox.width = (orig.x + orig.width) - x;
+            newBBox.height = y - orig.y;
+            break;
+        }
+        if (activeHandle.object.type === 'circle' || activeHandle.object.type === 'sphere') {
+          let newRadius = Math.min(newBBox.width, newBBox.height) / 2;
+          activeHandle.object.x = newBBox.x + newRadius;
+          activeHandle.object.y = newBBox.y + newRadius;
+          activeHandle.object.radius = newRadius;
+        } else if (activeHandle.object.type === 'ellipse') {
+          activeHandle.object.x = newBBox.x;
+          activeHandle.object.y = newBBox.y;
+          activeHandle.object.width = newBBox.width;
+          activeHandle.object.height = newBBox.height;
+        }
+        redraw();
+        return;
+      }
+      if (drawingMode === 'select') {
+        if (isDraggingSelection) {
+          const dx = x - dragStartForSelection.x;
+          const dy = y - dragStartForSelection.y;
+          selectedObjects.forEach((obj, idx) => {
+            if (obj.type === 'line') {
+              obj.x1 = originalPositionsForSelection[idx].x1 + dx;
+              obj.y1 = originalPositionsForSelection[idx].y1 + dy;
+              obj.x2 = originalPositionsForSelection[idx].x2 + dx;
+              obj.y2 = originalPositionsForSelection[idx].y2 + dy;
+            } else if (obj.type === 'pencil' || obj.type === 'highlight' || obj.type === 'eraser') {
+              obj.points = originalPositionsForSelection[idx].points.map(p => ({
+                x: p.x + dx,
+                y: p.y + dy
+              }));
+            } else if (obj.vertices) {
+              obj.vertices = originalPositionsForSelection[idx].vertices.map(v => ({
+                x: v.x + dx,
+                y: v.y + dy
+              }));
+            } else {
+              obj.x = originalPositionsForSelection[idx].x + dx;
+              obj.y = originalPositionsForSelection[idx].y + dy;
+            }
+          });
+          redraw();
+          updateMoveIcon();
+          return;
+        }
+        if (isSelectingRect) {
+          selectionRect.x = Math.min(selectionStart.x, x);
+          selectionRect.y = Math.min(selectionStart.y, y);
+          selectionRect.width = Math.abs(x - selectionStart.x);
+          selectionRect.height = Math.abs(y - selectionStart.y);
+          redraw();
+          return;
+        }
+      }
+      if (!isDrawing || !currentDrawing) {
+        if (drawingMode === 'select' && selectedObjects.length === 1) {
+          let obj = selectedObjects[0];
+          let cursorSet = false;
+          if (obj.vertices) {
+            for (let v of obj.vertices) {
+              let dx = x - v.x, dy = y - v.y;
+              if (Math.sqrt(dx * dx + dy * dy) < 6) {
+                canvas.style.cursor = "crosshair";
+                cursorSet = true;
+                break;
+              }
+            }
+          } else if (obj.type === 'circle' || obj.type === 'ellipse' || obj.type === 'sphere') {
+            let bbox = getBoundingBox(obj);
+            let handles = [
+              { x: bbox.x, y: bbox.y },
+              { x: bbox.x + bbox.width, y: bbox.y },
+              { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+              { x: bbox.x, y: bbox.y + bbox.height }
+            ];
+            for (let h of handles) {
+              let dx = x - h.x, dy = y - h.y;
+              if (Math.sqrt(dx * dx + dy * dy) < 6) {
+                canvas.style.cursor = "crosshair";
+                cursorSet = true;
+                break;
+              }
+            }
+          }
+          if (!cursorSet) canvas.style.cursor = "default";
+        } else {
+          canvas.style.cursor = "default";
+        }
+        return;
+      }
+      if (drawingMode === 'line') {
+        currentDrawing.x2 = x;
+        currentDrawing.y2 = y;
+      }
+      else if (['cube','rectangle','triangle','pentagon','star','hexagon','ellipse','cylinder','cone','star3d','heart','prisma','prismaPentagonal'].includes(drawingMode)) {
+        currentDrawing.width = x - currentDrawing.x;
+        currentDrawing.height = y - currentDrawing.y;
+      }
+      else if (drawingMode === 'circle') {
+        currentDrawing.radius = Math.sqrt(Math.pow(x - currentDrawing.x, 2) + Math.pow(y - currentDrawing.y, 2));
+      }
+      else if (drawingMode === 'sphere') {
+        currentDrawing.radius = Math.sqrt(Math.pow(x - currentDrawing.x, 2) + Math.pow(y - currentDrawing.y, 2));
+      }
+      else if (['pencil','highlight','eraser'].includes(drawingMode)) {
+        currentDrawing.points.push({ x, y });
+      }
+      redraw();
+    });
+    canvas.addEventListener('pointerup', (e) => {
+      e.preventDefault();
+      if (e.pointerType === "touch") {
+        delete activeTouchPointers[e.pointerId];
+        if (Object.keys(activeTouchPointers).length < 2) {
+          gesture = null;
+        }
+        return;
+      }
+      if (activeDimension) {
+        activeDimension = null;
+        dimensionDragStart = null;
+        initialDimensions = null;
+        return;
+      }
+      if (isDraggingHandle) {
+        isDraggingHandle = false;
+        activeHandle = null;
+        return;
+      }
+      if (drawingMode === 'select') {
+        if (isDraggingSelection) isDraggingSelection = false;
+        if (isSelectingRect) {
+          if (selectionRect.width < 5 && selectionRect.height < 5) {
+            for (let i = drawnObjects.length - 1; i >= 0; i--) {
+              const bbox = getBoundingBox(drawnObjects[i]);
+              if (selectionStart.x >= bbox.x && selectionStart.x <= bbox.x + bbox.width &&
+                  selectionStart.y >= bbox.y && selectionStart.y <= bbox.y + bbox.height) {
+                selectedObjects = [drawnObjects[i]];
+                break;
+              }
+            }
+          } else {
+            drawnObjects.forEach(obj => {
+              const bbox = getBoundingBox(obj);
+              if (rectsIntersect(bbox, selectionRect)) {
+                selectedObjects.push(obj);
+              }
+            });
+          }
+          isSelectingRect = false;
+          selectionRect = { x: 0, y: 0, width: 0, height: 0 };
+          redraw();
+        }
+        updateTransformControls();
+        updateMoveIcon();
+        return;
+      }
+      if (isDrawing && currentDrawing) {
+        if (currentDrawing.type === 'eraser') {
+          let xs = currentDrawing.points.map(p => p.x);
+          let ys = currentDrawing.points.map(p => p.y);
+          let eraserBox = {
+            x: Math.min(...xs),
+            y: Math.min(...ys),
+            width: Math.max(...xs) - Math.min(...xs),
+            height: Math.max(...ys) - Math.min(...ys)
+          };
+          drawnObjects = drawnObjects.filter(obj => {
+            let bbox = getBoundingBox(obj);
+            return !rectsIntersect(bbox, eraserBox);
+          });
+          currentDrawing = null;
+          isDrawing = false;
+          redraw();
+          updateTransformControls();
+          updateMoveIcon();
+          saveState();
+          return;
+        } else {
+          if (['rectangle','triangle','pentagon','star','hexagon','cube','cylinder','cone','star3d','heart','prisma','prismaPentagonal'].includes(currentDrawing.type)) {
+            if (currentDrawing.width < 0) {
+              currentDrawing.x += currentDrawing.width;
+              currentDrawing.width = Math.abs(currentDrawing.width);
+            }
+            if (currentDrawing.height < 0) {
+              currentDrawing.y += currentDrawing.height;
+              currentDrawing.height = Math.abs(currentDrawing.height);
+            }
+          }
+          drawnObjects.push(currentDrawing);
+          if (['rectangle','triangle','pentagon','star','hexagon'].includes(currentDrawing.type)) {
+            currentDrawing.vertices = getVerticesForShape(currentDrawing);
+          }
+          if (currentDrawing.type !== 'pencil' && currentDrawing.type !== 'highlight' && currentDrawing.type !== 'eraser') {
+            selectedObjects = [currentDrawing];
+            drawingMode = 'select';
+          }
+          currentDrawing = null;
+          isDrawing = false;
+          updateToolbarActive();
+          redraw();
+          updateTransformControls();
+          updateMoveIcon();
+          saveState();
+        }
+      }
+    });
+    canvas.addEventListener('pointercancel', (e) => {
+      if (e.pointerType === "touch") {
+        delete activeTouchPointers[e.pointerId];
+        if (Object.keys(activeTouchPointers).length < 2) {
+          gesture = null;
+        }
+      }
+    });
+    // PDF e Imagen
+    function handlePdfUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const typedarray = new Uint8Array(e.target.result);
+        pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+          const numPages = pdf.numPages;
+          let pagePromises = [];
+          for (let i = 1; i <= numPages; i++) {
+            pagePromises.push(
+              pdf.getPage(i).then(page => {
+                const scale = 2;
+                const viewport = page.getViewport({ scale: scale });
+                const tempCanvas = document.createElement("canvas");
+                const tempCtx = tempCanvas.getContext("2d");
+                tempCanvas.width = viewport.width;
+                tempCanvas.height = viewport.height;
+                const renderContext = {
+                  canvasContext: tempCtx,
+                  viewport: viewport
+                };
+                return page.render(renderContext).promise.then(() => tempCanvas);
+              })
+            );
+          }
+          Promise.all(pagePromises).then(canvases => {
+            const combinedWidth = Math.max(...canvases.map(c => c.width));
+            const combinedHeight = canvases.reduce((sum, c) => sum + c.height, 0);
+            const combinedCanvas = document.createElement("canvas");
+            combinedCanvas.width = combinedWidth;
+            combinedCanvas.height = combinedHeight;
+            const combinedCtx = combinedCanvas.getContext("2d");
+            let currentY = 0;
+            canvases.forEach(c => {
+              combinedCtx.drawImage(c, 0, currentY);
+              currentY += c.height;
+            });
+            const img = new Image();
+            img.onload = function() {
+              const pdfObj = {
+                type: "pdf-page",
+                img: img,
+                x: 100,
+                y: 100,
+                width: combinedCanvas.width,
+                height: combinedCanvas.height,
+                rotation: 0
+              };
+              drawnObjects.push(pdfObj);
+              redraw();
+              saveState();
+            };
+            img.src = combinedCanvas.toDataURL("image/png");
+          });
+        }).catch(err => {
+          console.error("Error al cargar el PDF: " + err);
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    }
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const maxWidth = canvas.width * 0.5;
+          let scale = 1;
+          if (img.width > maxWidth) scale = maxWidth / img.width;
+          const imageObj = {
+            type: 'image',
+            img: img,
+            x: 100,
+            y: 100,
+            width: img.width * scale,
+            height: img.height * scale,
+            rotation: 0
+          };
+          drawnObjects.push(imageObj);
+          redraw();
+          saveState();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    // Guardar Nota
+    async function saveNote() {
+      try {
+        const opts = {
+          types: [{
+            description: 'JSON Files',
+            accept: { 'application/json': ['.json'] },
+          }],
+        };
+        const handle = await window.showSaveFilePicker(opts);
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify(drawnObjects));
+        await writable.close();
+      } catch (err) {
+        console.error("Error al guardar la nota: ", err);
+      }
+    }
+    function handleNoteOpen(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          drawnObjects = JSON.parse(e.target.result);
+          redraw();
+        } catch (err) {
+          console.error("Error al cargar la nota: " + err);
+        }
+      };
+      reader.readAsText(file);
+    }
+    // Zoom y Pan
+    function zoomCanvas(factor) {
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      const canvasCenterX = (centerX - 60 - canvasOffsetX) / canvasZoom;
+      const canvasCenterY = (centerY - 50 - canvasOffsetY) / canvasZoom;
+      canvasZoom *= factor;
+      canvasOffsetX = centerX - 60 - canvasCenterX * canvasZoom;
+      canvasOffsetY = centerY - 50 - canvasCenterY * canvasZoom;
+      redraw();
+      updateMinimap();
+    }
+    function updateMinimap() {
+      mctx.resetTransform();
+      mctx.clearRect(0, 0, minimap.width, minimap.height);
+      mctx.fillStyle = "#fff";
+      mctx.fillRect(0, 0, minimap.width, minimap.height);
+      drawnObjects.forEach(obj => {
+        let bbox = getBoundingBox(obj);
+        mctx.strokeStyle = "gray";
+        mctx.lineWidth = 1;
+        mctx.strokeRect(bbox.x * minimapScale, bbox.y * minimapScale, bbox.width * minimapScale, bbox.height * minimapScale);
+      });
+      const containerWidth = window.innerWidth;
+      const containerHeight = window.innerHeight;
+      const viewX = -canvasOffsetX / canvasZoom;
+      const viewY = -canvasOffsetY / canvasZoom;
+      const viewWidth = (containerWidth - 60) / canvasZoom;
+      const viewHeight = (containerHeight - 50) / canvasZoom;
+      mctx.strokeStyle = "red";
+      mctx.lineWidth = 2;
+      mctx.strokeRect(viewX * minimapScale, viewY * minimapScale, viewWidth * minimapScale, viewHeight * minimapScale);
+    }
+    function panCanvas(dx, dy) {
+      canvasOffsetX += dx;
+      canvasOffsetY += dy;
+      const M = 38;
+      const canvasLeft = 60;
+      const canvasTop = 50;
+      const containerWidth = window.innerWidth;
+      const containerHeight = window.innerHeight;
+      let maxOffsetX = M - canvasLeft;
+      let minOffsetX = (containerWidth - M) - canvasLeft - canvas.width * canvasZoom;
+      let maxOffsetY = M - canvasTop;
+      let minOffsetY = (containerHeight - M) - canvasTop - canvas.height * canvasZoom;
+      canvasOffsetX = Math.min(canvasOffsetX, maxOffsetX);
+      canvasOffsetX = Math.max(canvasOffsetX, minOffsetX);
+      canvasOffsetY = Math.min(canvasOffsetY, maxOffsetY);
+      canvasOffsetY = Math.max(canvasOffsetY, minOffsetY);
+      redraw();
+      updateMinimap();
+    }
+    minimap.addEventListener('click', function(e) {
+      const rect = minimap.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      const centerX = clickX / minimapScale;
+      const centerY = clickY / minimapScale;
+      const containerWidth = window.innerWidth;
+      const containerHeight = window.innerHeight;
+      canvasOffsetX = -(centerX * canvasZoom - (containerWidth - 60) / 2);
+      canvasOffsetY = -(centerY * canvasZoom - (containerHeight - 50) / 2);
+      const M = 38;
+      const canvasLeft = 60;
+      const canvasTop = 50;
+      let maxOffsetX = M - canvasLeft;
+      let minOffsetX = (containerWidth - M) - canvasLeft - canvas.width * canvasZoom;
+      let maxOffsetY = M - canvasTop;
+      let minOffsetY = (containerHeight - M) - canvasTop - canvas.height * canvasZoom;
+      canvasOffsetX = Math.min(canvasOffsetX, maxOffsetX);
+      canvasOffsetX = Math.max(canvasOffsetX, minOffsetX);
+      canvasOffsetY = Math.min(canvasOffsetY, maxOffsetY);
+      canvasOffsetY = Math.max(canvasOffsetY, minOffsetY);
+      redraw();
+      updateMinimap();
+    });
+    function resetView() {
+      canvasOffsetX = 0;
+      canvasOffsetY = 0;
+      redraw();
+      updateMinimap();
+    }
+    // EVENTOS DEL CANVAS
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (e.pointerType === "touch") {
+        activeTouchPointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+        if (Object.keys(activeTouchPointers).length === 2) {
+          const pointers = Object.values(activeTouchPointers);
+          const dx = pointers[0].x - pointers[1].x;
+          const dy = pointers[0].y - pointers[1].y;
+          const distanceVal = Math.sqrt(dx * dx + dy * dy);
+          const midpoint = { x: (pointers[0].x + pointers[1].x) / 2, y: (pointers[0].y + pointers[1].y) / 2 };
+          gesture = {
+            startDistance: distanceVal,
+            startMidpoint: midpoint,
+            initialCanvasZoom: canvasZoom,
+            initialCanvasOffsetX: canvasOffsetX,
+            initialCanvasOffsetY: canvasOffsetY
+          };
+        }
+        return;
+      }
+      if (e.pointerType === "pen" || e.pointerType === "mouse") hideSubmenus();
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left - canvasOffsetX) / canvasZoom;
+      const y = (e.clientY - rect.top - canvasOffsetY) / canvasZoom;
+      // Si en modo select y se ha seleccionado un prisma (rectangular o pentagonal), verificar handles de dimensión
+      if (drawingMode === 'select' && selectedObjects.length === 1 && (selectedObjects[0].type === 'prisma' || selectedObjects[0].type === 'prismaPentagonal')) {
+        let obj = selectedObjects[0];
+        const factorPerspectiva = (obj.type === 'prisma') ? 0.5 : 0.6;
+        const offsetX = obj.depth * factorPerspectiva;
+        const offsetY = obj.depth * factorPerspectiva / 2;
+        const handleLargo = { x: obj.x + obj.width / 2 + offsetX, y: obj.y - offsetY };
+        const handleAncho = { x: obj.x + obj.width, y: obj.y + obj.height / 2 };
+        const handleAlto = { x: obj.x + obj.width / 2, y: obj.y + obj.height };
+        if (distance({ x, y }, handleLargo) < 10) {
+          activeDimension = 'largo';
+          dimensionDragStart = { x: e.clientX, y: e.clientY };
+          initialDimensions = { width: obj.width, height: obj.height, depth: obj.depth };
+          return;
+        } else if (distance({ x, y }, handleAncho) < 10) {
+          activeDimension = 'ancho';
+          dimensionDragStart = { x: e.clientX, y: e.clientY };
+          initialDimensions = { width: obj.width, height: obj.height, depth: obj.depth };
+          return;
+        } else if (distance({ x, y }, handleAlto) < 10) {
+          activeDimension = 'alto';
+          dimensionDragStart = { x: e.clientX, y: e.clientY };
+          initialDimensions = { width: obj.width, height: obj.height, depth: obj.depth };
+          return;
+        }
+      }
+      if (drawingMode === 'select' && selectedObjects.length === 1 && selectedObjects[0].vertices) {
+        let obj = selectedObjects[0];
+        for (let i = 0; i < obj.vertices.length; i++) {
+          let v = obj.vertices[i];
+          let dx = x - v.x, dy = y - v.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 6) {
+            isDraggingHandle = true;
+            activeHandle = { object: obj, index: i };
+            return;
+          }
+        }
+      }
+      if (drawingMode === 'select' && selectedObjects.length === 1 &&
+         (selectedObjects[0].type === 'circle' || selectedObjects[0].type === 'ellipse' || selectedObjects[0].type === 'sphere')) {
+        let obj = selectedObjects[0];
+        let bbox = getBoundingBox(obj);
+        let handles = [
+          { x: bbox.x, y: bbox.y },
+          { x: bbox.x + bbox.width, y: bbox.y },
+          { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+          { x: bbox.x, y: bbox.y + bbox.height }
+        ];
+        for (let i = 0; i < handles.length; i++) {
+          let h = handles[i];
+          let dx = x - h.x, dy = y - h.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 6) {
+            isDraggingHandle = true;
+            activeHandle = { object: obj, type: 'bbox', index: i, originalBBox: bbox };
+            return;
+          }
+        }
+      }
+      if (drawingMode === 'select') {
+        let pointInSelected = false;
+        for (let obj of selectedObjects) {
+          const bbox = getBoundingBox(obj);
+          if (x >= bbox.x && x <= bbox.x + bbox.width && y >= bbox.y && y <= bbox.y + bbox.height) {
+            pointInSelected = true;
+            break;
+          }
+        }
+        if (pointInSelected) {
+          isDraggingSelection = true;
+          dragStartForSelection = { x, y };
+          originalPositionsForSelection = selectedObjects.map(obj => {
+            if (obj.type === 'line') {
+              return { x1: obj.x1, y1: obj.y1, x2: obj.x2, y2: obj.y2 };
+            } else if (obj.type === 'pencil' || obj.type === 'highlight' || obj.type === 'eraser') {
+              return { points: obj.points.map(p => ({ ...p })) };
+            } else if (obj.vertices) {
+              return { vertices: obj.vertices.map(v => ({ ...v })) };
+            } else {
+              return { x: obj.x, y: obj.y };
+            }
+          });
+          return;
+        } else {
+          selectedObjects = [];
+          isSelectingRect = true;
+          selectionStart = { x, y };
+          selectionRect = { x, y, width: 0, height: 0 };
+          updateTransformControls();
+          updateMoveIcon();
+          redraw();
+          return;
+        }
+      }
+      if (e.pointerType === "pen" || e.pointerType === "mouse") {
+        isDrawing = true;
+        if (['pencil', 'highlight', 'eraser'].includes(drawingMode)) {
+          currentDrawing = { type: drawingMode, color: currentColor, points: [{ x, y }], rotation: 0, thickness: (drawingMode === 'pencil' ? pencilThickness : highlighterThickness) };
+        }
+        else if (drawingMode === 'line') {
+          currentDrawing = { type: 'line', borderColor: currentBorderColor, x1: x, y1: y, x2: x, y2: y, rotation: 0 };
+        }
+        else if (drawingMode === 'cube') {
+          currentDrawing = { type: 'cube', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'sphere') {
+          currentDrawing = { type: 'sphere', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, radius: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'hexagon') {
+          currentDrawing = { type: 'hexagon', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'cylinder') {
+          currentDrawing = { type: 'cylinder', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'cone') {
+          currentDrawing = { type: 'cone', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'star3d') {
+          currentDrawing = { type: 'star3d', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'heart') {
+          currentDrawing = { type: 'heart', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        else if (drawingMode === 'prisma') {
+          currentDrawing = { type: 'prisma', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, depth: 120, rotation: 0 };
+        }
+        else if (drawingMode === 'prismaPentagonal') {
+          currentDrawing = { type: 'prismaPentagonal', borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, depth: 120, rotation: 0 };
+        }
+        else if (['rectangle', 'triangle', 'pentagon', 'star', 'ellipse'].includes(drawingMode)) {
+          currentDrawing = { type: drawingMode, borderColor: currentBorderColor, fillColor: currentFillColor, fillTransparency: currentFillTransparency, x: x, y: y, width: 0, height: 0, rotation: 0 };
+        }
+        redraw();
+      }
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      e.preventDefault();
+      if (e.pointerType === "touch") {
+        activeTouchPointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+        const count = Object.keys(activeTouchPointers).length;
+        if (count === 1) {
+          let prev = activeTouchPointers[e.pointerId];
+          let dx = e.clientX - prev.x;
+          let dy = e.clientY - prev.y;
+          canvasOffsetX += dx;
+          canvasOffsetY += dy;
+          redraw();
+          updateMinimap();
+        } else if (count === 2 && gesture) {
+          const pointers = Object.values(activeTouchPointers);
+          const dxPinch = pointers[0].x - pointers[1].x;
+          const dyPinch = pointers[0].y - pointers[1].y;
+          const newDistance = Math.sqrt(dxPinch * dxPinch + dyPinch * dyPinch);
+          const newMidpoint = { x: (pointers[0].x + pointers[1].x) / 2, y: (pointers[0].y + pointers[1].y) / 2 };
+          const zoomFactor = newDistance / gesture.startDistance;
+          canvasZoom = gesture.initialCanvasZoom * zoomFactor;
+          const canvasPoint = {
+            x: (gesture.startMidpoint.x - gesture.initialCanvasOffsetX) / gesture.initialCanvasZoom,
+            y: (gesture.startMidpoint.y - gesture.initialCanvasOffsetY) / gesture.initialCanvasZoom
+          };
+          canvasOffsetX = newMidpoint.x - canvasPoint.x * canvasZoom;
+          canvasOffsetY = newMidpoint.y - canvasPoint.y * canvasZoom;
+          redraw();
+          updateMinimap();
+        }
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left - canvasOffsetX) / canvasZoom;
+      const y = (e.clientY - rect.top - canvasOffsetY) / canvasZoom;
+      if (activeDimension && selectedObjects.length === 1 && (selectedObjects[0].type === 'prisma' || selectedObjects[0].type === 'prismaPentagonal')) {
+        let prisma = selectedObjects[0];
+        if (activeDimension === 'ancho') {
+          prisma.width = Math.max(initialDimensions.width + (e.clientX - dimensionDragStart.x) / canvasZoom, 10);
+        } else if (activeDimension === 'alto') {
+          prisma.height = Math.max(initialDimensions.height + (e.clientY - dimensionDragStart.y) / canvasZoom, 10);
+        } else if (activeDimension === 'largo') {
+          prisma.depth = Math.max(initialDimensions.depth + (e.clientX - dimensionDragStart.x) / canvasZoom, 10);
+        }
+        redraw();
+        return;
+      }
+      if (isDraggingHandle && activeHandle && !activeHandle.type) {
+        activeHandle.object.vertices[activeHandle.index] = { x, y };
+        redraw();
+        return;
+      }
+      if (isDraggingHandle && activeHandle && activeHandle.type === 'bbox') {
+        let orig = activeHandle.originalBBox;
+        let newBBox = {};
+        switch (activeHandle.index) {
+          case 0:
+            newBBox.x = x;
+            newBBox.y = y;
+            newBBox.width = (orig.x + orig.width) - x;
+            newBBox.height = (orig.y + orig.height) - y;
+            break;
+          case 1:
+            newBBox.x = orig.x;
+            newBBox.y = y;
+            newBBox.width = x - orig.x;
+            newBBox.height = (orig.y + orig.height) - y;
+            break;
+          case 2:
+            newBBox.x = orig.x;
+            newBBox.y = orig.y;
+            newBBox.width = x - orig.x;
+            newBBox.height = y - orig.y;
+            break;
+          case 3:
+            newBBox.x = x;
+            newBBox.y = orig.y;
+            newBBox.width = (orig.x + orig.width) - x;
+            newBBox.height = y - orig.y;
+            break;
+        }
+        if (activeHandle.object.type === 'circle' || activeHandle.object.type === 'sphere') {
+          let newRadius = Math.min(newBBox.width, newBBox.height) / 2;
+          activeHandle.object.x = newBBox.x + newRadius;
+          activeHandle.object.y = newBBox.y + newRadius;
+          activeHandle.object.radius = newRadius;
+        } else if (activeHandle.object.type === 'ellipse') {
+          activeHandle.object.x = newBBox.x;
+          activeHandle.object.y = newBBox.y;
+          activeHandle.object.width = newBBox.width;
+          activeHandle.object.height = newBBox.height;
+        }
+        redraw();
+        return;
+      }
+      if (drawingMode === 'select') {
+        if (isDraggingSelection) {
+          const dx = x - dragStartForSelection.x;
+          const dy = y - dragStartForSelection.y;
+          selectedObjects.forEach((obj, idx) => {
+            if (obj.type === 'line') {
+              obj.x1 = originalPositionsForSelection[idx].x1 + dx;
+              obj.y1 = originalPositionsForSelection[idx].y1 + dy;
+              obj.x2 = originalPositionsForSelection[idx].x2 + dx;
+              obj.y2 = originalPositionsForSelection[idx].y2 + dy;
+            } else if (obj.type === 'pencil' || obj.type === 'highlight' || obj.type === 'eraser') {
+              obj.points = originalPositionsForSelection[idx].points.map(p => ({
+                x: p.x + dx,
+                y: p.y + dy
+              }));
+            } else if (obj.vertices) {
+              obj.vertices = originalPositionsForSelection[idx].vertices.map(v => ({
+                x: v.x + dx,
+                y: v.y + dy
+              }));
+            } else {
+              obj.x = originalPositionsForSelection[idx].x + dx;
+              obj.y = originalPositionsForSelection[idx].y + dy;
+            }
+          });
+          redraw();
+          updateMoveIcon();
+          return;
+        }
+        if (isSelectingRect) {
+          selectionRect.x = Math.min(selectionStart.x, x);
+          selectionRect.y = Math.min(selectionStart.y, y);
+          selectionRect.width = Math.abs(x - selectionStart.x);
+          selectionRect.height = Math.abs(y - selectionStart.y);
+          redraw();
+          return;
+        }
+      }
+      if (!isDrawing || !currentDrawing) {
+        if (drawingMode === 'select' && selectedObjects.length === 1) {
+          let obj = selectedObjects[0];
+          let cursorSet = false;
+          if (obj.vertices) {
+            for (let v of obj.vertices) {
+              let dx = x - v.x, dy = y - v.y;
+              if (Math.sqrt(dx * dx + dy * dy) < 6) {
+                canvas.style.cursor = "crosshair";
+                cursorSet = true;
+                break;
+              }
+            }
+          } else if (obj.type === 'circle' || obj.type === 'ellipse' || obj.type === 'sphere') {
+            let bbox = getBoundingBox(obj);
+            let handles = [
+              { x: bbox.x, y: bbox.y },
+              { x: bbox.x + bbox.width, y: bbox.y },
+              { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+              { x: bbox.x, y: bbox.y + bbox.height }
+            ];
+            for (let h of handles) {
+              let dx = x - h.x, dy = y - h.y;
+              if (Math.sqrt(dx * dx + dy * dy) < 6) {
+                canvas.style.cursor = "crosshair";
+                cursorSet = true;
+                break;
+              }
+            }
+          }
+          if (!cursorSet) canvas.style.cursor = "default";
+        } else {
+          canvas.style.cursor = "default";
+        }
+        return;
+      }
+      if (drawingMode === 'line') {
+        currentDrawing.x2 = x;
+        currentDrawing.y2 = y;
+      }
+      else if (['cube','rectangle','triangle','pentagon','star','hexagon','ellipse','cylinder','cone','star3d','heart','prisma','prismaPentagonal'].includes(drawingMode)) {
+        currentDrawing.width = x - currentDrawing.x;
+        currentDrawing.height = y - currentDrawing.y;
+      }
+      else if (drawingMode === 'circle') {
+        currentDrawing.radius = Math.sqrt(Math.pow(x - currentDrawing.x, 2) + Math.pow(y - currentDrawing.y, 2));
+      }
+      else if (drawingMode === 'sphere') {
+        currentDrawing.radius = Math.sqrt(Math.pow(x - currentDrawing.x, 2) + Math.pow(y - currentDrawing.y, 2));
+      }
+      else if (['pencil','highlight','eraser'].includes(drawingMode)) {
+        currentDrawing.points.push({ x, y });
+      }
+      redraw();
+    });
+    canvas.addEventListener('pointerup', (e) => {
+      e.preventDefault();
+      if (e.pointerType === "touch") {
+        delete activeTouchPointers[e.pointerId];
+        if (Object.keys(activeTouchPointers).length < 2) {
+          gesture = null;
+        }
+        return;
+      }
+      if (activeDimension) {
+        activeDimension = null;
+        dimensionDragStart = null;
+        initialDimensions = null;
+        return;
+      }
+      if (isDraggingHandle) {
+        isDraggingHandle = false;
+        activeHandle = null;
+        return;
+      }
+      if (drawingMode === 'select') {
+        if (isDraggingSelection) isDraggingSelection = false;
+        if (isSelectingRect) {
+          if (selectionRect.width < 5 && selectionRect.height < 5) {
+            for (let i = drawnObjects.length - 1; i >= 0; i--) {
+              const bbox = getBoundingBox(drawnObjects[i]);
+              if (selectionStart.x >= bbox.x && selectionStart.x <= bbox.x + bbox.width &&
+                  selectionStart.y >= bbox.y && selectionStart.y <= bbox.y + bbox.height) {
+                selectedObjects = [drawnObjects[i]];
+                break;
+              }
+            }
+          } else {
+            drawnObjects.forEach(obj => {
+              const bbox = getBoundingBox(obj);
+              if (rectsIntersect(bbox, selectionRect)) {
+                selectedObjects.push(obj);
+              }
+            });
+          }
+          isSelectingRect = false;
+          selectionRect = { x: 0, y: 0, width: 0, height: 0 };
+          redraw();
+        }
+        updateTransformControls();
+        updateMoveIcon();
+        return;
+      }
+      if (isDrawing && currentDrawing) {
+        if (currentDrawing.type === 'eraser') {
+          let xs = currentDrawing.points.map(p => p.x);
+          let ys = currentDrawing.points.map(p => p.y);
+          let eraserBox = {
+            x: Math.min(...xs),
+            y: Math.min(...ys),
+            width: Math.max(...xs) - Math.min(...xs),
+            height: Math.max(...ys) - Math.min(...ys)
+          };
+          drawnObjects = drawnObjects.filter(obj => {
+            let bbox = getBoundingBox(obj);
+            return !rectsIntersect(bbox, eraserBox);
+          });
+          currentDrawing = null;
+          isDrawing = false;
+          redraw();
+          updateTransformControls();
+          updateMoveIcon();
+          saveState();
+          return;
+        } else {
+          if (['rectangle','triangle','pentagon','star','hexagon','cube','cylinder','cone','star3d','heart','prisma','prismaPentagonal'].includes(currentDrawing.type)) {
+            if (currentDrawing.width < 0) {
+              currentDrawing.x += currentDrawing.width;
+              currentDrawing.width = Math.abs(currentDrawing.width);
+            }
+            if (currentDrawing.height < 0) {
+              currentDrawing.y += currentDrawing.height;
+              currentDrawing.height = Math.abs(currentDrawing.height);
+            }
+          }
+          drawnObjects.push(currentDrawing);
+          if (['rectangle','triangle','pentagon','star','hexagon'].includes(currentDrawing.type)) {
+            currentDrawing.vertices = getVerticesForShape(currentDrawing);
+          }
+          if (currentDrawing.type !== 'pencil' && currentDrawing.type !== 'highlight' && currentDrawing.type !== 'eraser') {
+            selectedObjects = [currentDrawing];
+            drawingMode = 'select';
+          }
+          currentDrawing = null;
+          isDrawing = false;
+          updateToolbarActive();
+          redraw();
+          updateTransformControls();
+          updateMoveIcon();
+          saveState();
+        }
+      }
+    });
+    canvas.addEventListener('pointercancel', (e) => {
+      if (e.pointerType === "touch") {
+        delete activeTouchPointers[e.pointerId];
+        if (Object.keys(activeTouchPointers).length < 2) {
+          gesture = null;
+        }
+      }
+    });
+    // PDF e Imagen
+    function handlePdfUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const typedarray = new Uint8Array(e.target.result);
+        pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+          const numPages = pdf.numPages;
+          let pagePromises = [];
+          for (let i = 1; i <= numPages; i++) {
+            pagePromises.push(
+              pdf.getPage(i).then(page => {
+                const scale = 2;
+                const viewport = page.getViewport({ scale: scale });
+                const tempCanvas = document.createElement("canvas");
+                const tempCtx = tempCanvas.getContext("2d");
+                tempCanvas.width = viewport.width;
+                tempCanvas.height = viewport.height;
+                const renderContext = {
+                  canvasContext: tempCtx,
+                  viewport: viewport
+                };
+                return page.render(renderContext).promise.then(() => tempCanvas);
+              })
+            );
+          }
+          Promise.all(pagePromises).then(canvases => {
+            const combinedWidth = Math.max(...canvases.map(c => c.width));
+            const combinedHeight = canvases.reduce((sum, c) => sum + c.height, 0);
+            const combinedCanvas = document.createElement("canvas");
+            combinedCanvas.width = combinedWidth;
+            combinedCanvas.height = combinedHeight;
+            const combinedCtx = combinedCanvas.getContext("2d");
+            let currentY = 0;
+            canvases.forEach(c => {
+              combinedCtx.drawImage(c, 0, currentY);
+              currentY += c.height;
+            });
+            const img = new Image();
+            img.onload = function() {
+              const pdfObj = {
+                type: "pdf-page",
+                img: img,
+                x: 100,
+                y: 100,
+                width: combinedCanvas.width,
+                height: combinedCanvas.height,
+                rotation: 0
+              };
+              drawnObjects.push(pdfObj);
+              redraw();
+              saveState();
+            };
+            img.src = combinedCanvas.toDataURL("image/png");
+          });
+        }).catch(err => {
+          console.error("Error al cargar el PDF: " + err);
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    }
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const maxWidth = canvas.width * 0.5;
+          let scale = 1;
+          if (img.width > maxWidth) scale = maxWidth / img.width;
+          const imageObj = {
+            type: 'image',
+            img: img,
+            x: 100,
+            y: 100,
+            width: img.width * scale,
+            height: img.height * scale,
+            rotation: 0
+          };
+          drawnObjects.push(imageObj);
+          redraw();
+          saveState();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    // Guardar Nota
+    async function saveNote() {
+      try {
+        const opts = {
+          types: [{
+            description: 'JSON Files',
+            accept: { 'application/json': ['.json'] },
+          }],
+        };
+        const handle = await window.showSaveFilePicker(opts);
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify(drawnObjects));
+        await writable.close();
+      } catch (err) {
+        console.error("Error al guardar la nota: ", err);
+      }
+    }
+    function handleNoteOpen(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          drawnObjects = JSON.parse(e.target.result);
+          redraw();
+        } catch (err) {
+          console.error("Error al cargar la nota: " + err);
+        }
+      };
+      reader.readAsText(file);
+    }
+    // Zoom y Pan
+    function zoomCanvas(factor) {
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      const canvasCenterX = (centerX - 60 - canvasOffsetX) / canvasZoom;
+      const canvasCenterY = (centerY - 50 - canvasOffsetY) / canvasZoom;
+      canvasZoom *= factor;
+      canvasOffsetX = centerX - 60 - canvasCenterX * canvasZoom;
+      canvasOffsetY = centerY - 50 - canvasCenterY * canvasZoom;
+      redraw();
+      updateMinimap();
+    }
+    function updateMinimap() {
+      mctx.resetTransform();
+      mctx.clearRect(0, 0, minimap.width, minimap.height);
+      mctx.fillStyle = "#fff";
+      mctx.fillRect(0, 0, minimap.width, minimap.height);
+      drawnObjects.forEach(obj => {
+        let bbox = getBoundingBox(obj);
+        mctx.strokeStyle = "gray";
+        mctx.lineWidth = 1;
+        mctx.strokeRect(bbox.x * minimapScale, bbox.y * minimapScale, bbox.width * minimapScale, bbox.height * minimapScale);
+      });
+      const containerWidth = window.innerWidth;
+      const containerHeight = window.innerHeight;
+      const viewX = -canvasOffsetX / canvasZoom;
+      const viewY = -canvasOffsetY / canvasZoom;
+      const viewWidth = (containerWidth - 60) / canvasZoom;
+      const viewHeight = (containerHeight - 50) / canvasZoom;
+      mctx.strokeStyle = "red";
+      mctx.lineWidth = 2;
+      mctx.strokeRect(viewX * minimapScale, viewY * minimapScale, viewWidth * minimapScale, viewHeight * minimapScale);
+    }
+    function panCanvas(dx, dy) {
+      canvasOffsetX += dx;
+      canvasOffsetY += dy;
+      const M = 38;
+      const canvasLeft = 60;
+      const canvasTop = 50;
+      const containerWidth = window.innerWidth;
+      const containerHeight = window.innerHeight;
+      let maxOffsetX = M - canvasLeft;
+      let minOffsetX = (containerWidth - M) - canvasLeft - canvas.width * canvasZoom;
+      let maxOffsetY = M - canvasTop;
+      let minOffsetY = (containerHeight - M) - canvasTop - canvas.height * canvasZoom;
+      canvasOffsetX = Math.min(canvasOffsetX, maxOffsetX);
+      canvasOffsetX = Math.max(canvasOffsetX, minOffsetX);
+      canvasOffsetY = Math.min(canvasOffsetY, maxOffsetY);
+      canvasOffsetY = Math.max(canvasOffsetY, minOffsetY);
+      redraw();
+      updateMinimap();
+    }
+    minimap.addEventListener('click', function(e) {
+      const rect = minimap.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      const centerX = clickX / minimapScale;
+      const centerY = clickY / minimapScale;
+      const containerWidth = window.innerWidth;
+      const containerHeight = window.innerHeight;
+      canvasOffsetX = -(centerX * canvasZoom - (containerWidth - 60) / 2);
+      canvasOffsetY = -(centerY * canvasZoom - (containerHeight - 50) / 2);
+      const M = 38;
+      const canvasLeft = 60;
+      const canvasTop = 50;
+      let maxOffsetX = M - canvasLeft;
+      let minOffsetX = (containerWidth - M) - canvasLeft - canvas.width * canvasZoom;
+      let maxOffsetY = M - canvasTop;
+      let minOffsetY = (containerHeight - M) - canvasTop - canvas.height * canvasZoom;
+      canvasOffsetX = Math.min(canvasOffsetX, maxOffsetX);
+      canvasOffsetX = Math.max(canvasOffsetX, minOffsetX);
+      canvasOffsetY = Math.min(canvasOffsetY, maxOffsetY);
+      canvasOffsetY = Math.max(canvasOffsetY, minOffsetY);
+      redraw();
+      updateMinimap();
+    });
+    function resetView() {
+      canvasOffsetX = 0;
+      canvasOffsetY = 0;
+      redraw();
+      updateMinimap();
+    }
+  </script>
+</body>
+</html>
